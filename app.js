@@ -731,7 +731,7 @@ function removeEntryElement(entryEl) {
   }
 }
 
-function openGalleryDeleteDialog() {
+function openEntryDeleteDialog() {
   if (!galleryDeleteDialog || !galleryDeleteForm || typeof galleryDeleteDialog.showModal !== "function") {
     const deleteInRepo = window.confirm(
       "Soll das Bild auch im Git-Repository gelöscht werden?\nOK: Bild + Eintrag löschen\nAbbrechen: Nur Eintrag löschen."
@@ -2215,7 +2215,7 @@ function addEntry(defaults = {}, { expand = true, insert = "auto", scrollToEntry
       return;
     }
 
-    const decision = await openGalleryDeleteDialog();
+    const decision = await openEntryDeleteDialog();
     if (!decision) return;
 
     if (decision === "delete-repo" && srcPath) {
@@ -2519,7 +2519,7 @@ async function buildGalleryDeleteArtifacts(technicalName) {
   };
 }
 
-function openGalleryDeleteDialog() {
+function openGalleryScaffoldDeleteDialog() {
   if (!galleryDeleteScaffoldDialog || typeof galleryDeleteScaffoldDialog.showModal !== "function") return;
   galleryDeleteTechName.value = "";
   galleryDeletePreviewPaths.textContent = "";
@@ -3228,7 +3228,7 @@ createGalleryScaffoldBtn?.addEventListener("click", () => {
   openGalleryCreateDialog();
 });
 deleteGalleryScaffoldBtn?.addEventListener("click", () => {
-  openGalleryDeleteDialog();
+  openGalleryScaffoldDeleteDialog();
 });
 galleryCreatePreviewBtn?.addEventListener("click", () => {
   const technicalName = sanitizeGalleryTechnicalName(galleryCreateTechName?.value);
