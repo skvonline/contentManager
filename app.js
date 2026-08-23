@@ -232,6 +232,33 @@ const specs = {
       directory: "fasching26"
     }
   },
+  faq: {
+    filename: "faq.json",
+    summaryKeys: ["kategorie"],
+    fields: [
+      { name: "kategorie", type: "text", required: true },
+      {
+        name: "fragen",
+        type: "list",
+        required: true,
+        itemFields: [
+          { name: "frage", type: "text", required: true },
+          { name: "antwort", type: "textarea", required: true },
+          { name: "stichwoerter", type: "csv", required: true, placeholder: "Tickets, Kontakt" }
+        ]
+      }
+    ],
+    template: {
+      kategorie: "Kartenverkauf",
+      fragen: [
+        {
+          frage: "Wo finde ich Informationen zum Kartenverkauf?",
+          antwort: "<p>Alle Informationen zum Kartenverkauf findest du in unserem separaten FAQ.</p>",
+          stichwoerter: ["Tickets", "Kontakt"]
+        }
+      ]
+    }
+  },
   gallery: {
     filename: "gallerys/{xyz}.json",
     summaryKeys: ["src", "alt"],
@@ -1888,7 +1915,10 @@ function readEntry(entryEl) {
       const row = {};
       item.querySelectorAll("[data-sub-field]").forEach((subInput) => {
         const val = subInput.value.trim();
-        if (val) row[subInput.dataset.subField] = val;
+        if (!val) return;
+        row[subInput.dataset.subField] = subInput.dataset.fieldType === "csv"
+          ? val.split(",").map((part) => part.trim()).filter(Boolean)
+          : val;
       });
       if (Object.keys(row).length > 0) items.push(row);
     });

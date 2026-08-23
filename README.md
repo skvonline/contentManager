@@ -762,3 +762,48 @@ Alle Dateidownloads, die auf der Downloadseite angezeigt werden.
   }
 ]
 ```
+
+---
+
+## 12) Datei: `faq.json`
+
+Pfad: `./src/data/faq.json`
+
+### 12.1 Zweck
+
+Kategorisierte Fragen und Antworten für die FAQ-Seite.
+
+### 12.2 Felder pro Kategorie
+
+| Feld       | Typ             | Pflicht | Beschreibung                         |
+|------------|-----------------|----------|--------------------------------------|
+| `kategorie` | `string`        | Ja       | Überschrift der FAQ-Kategorie.       |
+| `fragen`    | `array<object>` | Ja       | Mindestens eine Frage der Kategorie. |
+
+### 12.3 Felder pro Frage
+
+| Feld           | Typ             | Pflicht | Beschreibung                                      |
+|----------------|-----------------|----------|---------------------------------------------------|
+| `frage`        | `string`        | Ja       | Angezeigte Frage.                                 |
+| `antwort`      | `string`        | Ja       | Antwort als HTML-Text.                            |
+| `stichwoerter` | `array<string>` | Ja       | Kommagetrennt eingegebene Such- und Filterbegriffe. |
+
+### 12.4 Vorlage
+
+```json
+[
+  {
+    "kategorie": "Kartenverkauf",
+    "fragen": [
+      {
+        "frage": "Wo finde ich Informationen zum Kartenverkauf?",
+        "antwort": "<p>Alle Informationen zum Kartenverkauf findest du in unserem separaten FAQ.</p>",
+        "stichwoerter": [
+          "Tickets",
+          "Kontakt"
+        ]
+      }
+    ]
+  }
+]
+```
