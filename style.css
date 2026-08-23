@@ -421,3 +421,75 @@ pre {
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(13, 71, 161, 0.25);
 }
+.html-answer-preview {
+  min-height: 3rem;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.html-answer-preview.is-empty {
+  color: #64748b;
+  font-style: italic;
+}
+
+.html-answer-preview > :first-child { margin-top: 0; }
+.html-answer-preview > :last-child { margin-bottom: 0; }
+.html-answer-edit-button { margin-top: 0.5rem; }
+
+.html-editor-dialog {
+  width: min(54rem, calc(100% - 1rem));
+  max-height: calc(100vh - 1rem);
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0;
+}
+
+.html-editor-dialog::backdrop { background: rgb(15 23 42 / 65%); }
+.html-editor-form { padding: 1rem; }
+.html-editor-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+
+.html-code-editor {
+  position: relative;
+  min-height: 20rem;
+  border: 1px solid #64748b;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.html-code-editor pre,
+.html-code-editor textarea {
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 1rem;
+  border: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font: 0.95rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  tab-size: 2;
+}
+
+.html-code-editor pre { color: #e2e8f0; pointer-events: none; }
+.html-code-editor textarea {
+  resize: none;
+  color: transparent;
+  background: transparent;
+  caret-color: #fff;
+  -webkit-text-fill-color: transparent;
+}
+.html-code-editor textarea::selection { background: rgb(96 165 250 / 45%); }
+.syntax-bracket { color: #94a3b8; }
+.syntax-tag { color: #f472b6; }
+.syntax-attribute { color: #facc15; }
+
+@media (max-width: 600px) {
+  .html-code-editor { min-height: 55vh; }
+  .html-editor-toolbar button { flex: 1 1 auto; }
+}

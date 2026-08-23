@@ -788,6 +788,10 @@ Kategorisierte Fragen und Antworten für die FAQ-Seite.
 | `antwort`      | `string`        | Ja       | Antwort als HTML-Text.                            |
 | `stichwoerter` | `array<string>` | Ja       | Kommagetrennt eingegebene Such- und Filterbegriffe. |
 
+Die Antwort wird im Eintragsformular gerendert dargestellt. Über **HTML bearbeiten** öffnet sich ein kleiner Editor mit
+Syntaxhervorhebung. Die Werkzeugleiste fügt vollständige `<p>`-, `<ul>`-, `<ol>`-, `<li>`- und `<a>`-Elemente an der
+Cursorposition ein; bei Links wird vorher das `href` abgefragt.
+
 ### 12.4 Vorlage
 
 ```json
