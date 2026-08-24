@@ -841,3 +841,13 @@ Eigenständige, themenspezifische FAQ-Dateien. Der technische Dateiname wird im 
   }
 ]
 ```
+
+### 13.4 Neues Spezial-FAQ anlegen
+
+Wird beim Online-Laden ein noch nicht vorhandener FAQ-Dateiname verwendet, bietet der Generator an, das Spezial-FAQ
+anzulegen. Dabei werden die Inhalte für kurze Überschrift, FAQ-Titel, Einleitung, JSON-Pfad, Abschlussüberschrift und
+Abschlusstext abgefragt. Anschließend wird `src/data/faqs/vorlage_faq.html` geladen und zusammen mit einer zunächst
+leeren JSON-Datei in einem Commit als folgende Dateien angelegt:
+
+- `faq/{xyz}/index.html`
+- `src/data/faqs/{xyz}.json`

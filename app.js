@@ -358,6 +358,16 @@ const galleryDeletePreviewPaths = document.querySelector("#galleryDeletePreviewP
 const galleryDeletePreviewBtn = document.querySelector("#galleryDeletePreviewBtn");
 const galleryDeleteCommitBtn = document.querySelector("#galleryDeleteCommitBtn");
 const galleryDeleteCancelBtn = document.querySelector("#galleryDeleteCancelBtn");
+const specialFaqCreateDialog = document.querySelector("#specialFaqCreateDialog");
+const specialFaqCreateForm = document.querySelector("#specialFaqCreateForm");
+const specialFaqPagePath = document.querySelector("#specialFaqPagePath");
+const specialFaqEyebrowInput = document.querySelector("#specialFaqEyebrowInput");
+const specialFaqTitleInput = document.querySelector("#specialFaqTitleInput");
+const specialFaqIntroInput = document.querySelector("#specialFaqIntroInput");
+const specialFaqJsonPathInput = document.querySelector("#specialFaqJsonPathInput");
+const specialFaqClosingTitleInput = document.querySelector("#specialFaqClosingTitleInput");
+const specialFaqClosingTextInput = document.querySelector("#specialFaqClosingTextInput");
+const specialFaqCreateCancelBtn = document.querySelector("#specialFaqCreateCancelBtn");
 const DEFAULT_GALLERY_NAME = "home-gallery";
 const DEFAULT_SPECIAL_FAQ_NAME = "kartenverkauf";
 const DYNAMIC_FILE_TYPES = new Set(["gallery", "special-faq"]);
@@ -2646,6 +2656,127 @@ function getFetchUrl() {
   return `${base}/src/data/${specs[typeSelect.value].filename}`;
 }
 
+function replaceAllLiteral(value, search, replacement) {
+  return value.split(search).join(replacement);
+}
+
+function escapeHtmlAttribute(value) {
+  return escapeHtml(value).replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function buildSpecialFaqHtml(template, values) {
+  let html = template;
+  const replacements = [
+    ["Kurze Überschrift", escapeHtml(values.eyebrow)],
+    ["FAQ-Titel", escapeHtml(values.title)],
+    ["Einleitung für das Spezial-FAQ.", escapeHtml(values.intro)],
+    ["Abschluss Überschrift", escapeHtml(values.closingTitle)],
+    ["Abschluss Text", escapeHtml(values.closingText)],
+    ["../../src/data/faqs/NAME.json", escapeHtmlAttribute(values.jsonPath)]
+  ];
+  replacements.forEach(([placeholder, replacement]) => {
+    html = replaceAllLiteral(html, placeholder, replacement);
+  });
+  return html;
+}
+
+function openSpecialFaqCreateDialog(faqName) {
+  const defaultJsonPath = `../../src/data/faqs/${faqName}.json`;
+  if (!specialFaqCreateDialog || !specialFaqCreateForm || typeof specialFaqCreateDialog.showModal !== "function") {
+    const title = window.prompt("FAQ-Titel:", faqName);
+    if (!title) return Promise.resolve(null);
+    return Promise.resolve({
+      eyebrow: window.prompt("Kurze Überschrift:", "Häufige Fragen") || "Häufige Fragen",
+      title,
+      intro: window.prompt("Kurze Einleitung:", "Antworten auf häufig gestellte Fragen.") || "",
+      jsonPath: window.prompt("Pfad des JSONs:", defaultJsonPath) || defaultJsonPath,
+      closingTitle: window.prompt("Abschluss Überschrift:", "Noch Fragen?") || "",
+      closingText: window.prompt("Abschluss Text:", "Kontaktiert uns gerne.") || ""
+    });
+  }
+
+  specialFaqPagePath.textContent = `faq/${faqName}/index.html`;
+  specialFaqEyebrowInput.value = "";
+  specialFaqTitleInput.value = "";
+  specialFaqIntroInput.value = "";
+  specialFaqJsonPathInput.value = defaultJsonPath;
+  specialFaqClosingTitleInput.value = "";
+  specialFaqClosingTextInput.value = "";
+
+  return new Promise((resolve) => {
+    const closeDialog = (result = null) => {
+      specialFaqCreateForm.removeEventListener("submit", handleSubmit);
+      specialFaqCreateCancelBtn?.removeEventListener("click", handleCancel);
+      specialFaqCreateDialog.removeEventListener("cancel", handleCancel);
+      if (specialFaqCreateDialog.open) specialFaqCreateDialog.close();
+      resolve(result);
+    };
+    const handleSubmit = (event) => {
+      event.preventDefault();
+      if (!specialFaqCreateForm.reportValidity()) return;
+      closeDialog({
+        eyebrow: specialFaqEyebrowInput.value.trim(),
+        title: specialFaqTitleInput.value.trim(),
+        intro: specialFaqIntroInput.value.trim(),
+        jsonPath: specialFaqJsonPathInput.value.trim(),
+        closingTitle: specialFaqClosingTitleInput.value.trim(),
+        closingText: specialFaqClosingTextInput.value.trim()
+      });
+    };
+    const handleCancel = () => closeDialog(null);
+    specialFaqCreateForm.addEventListener("submit", handleSubmit);
+    specialFaqCreateCancelBtn?.addEventListener("click", handleCancel);
+    specialFaqCreateDialog.addEventListener("cancel", handleCancel);
+    specialFaqCreateDialog.showModal();
+    specialFaqEyebrowInput.focus();
+  });
+}
+
+async function createSpecialFaq(faqName) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(faqName)) {
+    window.alert("Der FAQ-Dateiname darf nur Buchstaben, Zahlen, Bindestriche und Unterstriche enthalten.");
+    return false;
+  }
+  const values = await openSpecialFaqCreateDialog(faqName);
+  if (!values) return false;
+
+  const commitInput = await openCommitDialog(`Create special FAQ ${faqName}`);
+  if (!commitInput) return false;
+
+  setCommitStatus("FAQ-Vorlage wird geladen...");
+  const branch = getTargetBranch();
+  const owner = CONFIG.GITHUB_OWNER;
+  const repo = CONFIG.GITHUB_REPO;
+  try {
+    const sourceBranch = encodeURIComponent(getSourceBranch());
+    const templateUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sourceBranch}/src/data/faqs/vorlage_faq.html`;
+    const templateResponse = await fetch(templateUrl, { cache: "no-store" });
+    if (!templateResponse.ok) throw new Error(`FAQ-Vorlage konnte nicht geladen werden (HTTP ${templateResponse.status}).`);
+    const html = buildSpecialFaqHtml(await templateResponse.text(), values);
+    const headSha = await ensureBranchExists({ owner, repo, branch, token: commitInput.token, baseBranch: getSourceBranch() });
+    const commitSha = await createSingleGitHubCommit({
+      owner,
+      repo,
+      branch,
+      token: commitInput.token,
+      message: commitInput.commitMessage,
+      headSha,
+      files: [
+        { path: `faq/${faqName}/index.html`, contentBase64: toBase64Utf8(html.endsWith("\n") ? html : `${html}\n`) },
+        { path: `src/data/faqs/${faqName}.json`, contentBase64: toBase64Utf8("[]\n") }
+      ]
+    });
+    const commitUrl = `https://github.com/${owner}/${repo}/commit/${commitSha}`;
+    renderEntries("special-faq", []);
+    setOnlineJsonLoaded(true);
+    setCommitStatus(`Spezial-FAQ erfolgreich angelegt: <a href="${commitUrl}" target="_blank" rel="noopener noreferrer">Commit ansehen</a>`, "success");
+    return true;
+  } catch (error) {
+    setCommitStatus(`Spezial-FAQ konnte nicht angelegt werden: ${escapeHtml(error.message)}`, "error");
+    return false;
+  }
+}
+
 
 
 function sanitizeGalleryTechnicalName(raw) {
@@ -3344,7 +3475,11 @@ async function loadOnlineJson() {
 
   try {
     const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      const requestError = new Error(`HTTP ${response.status}`);
+      requestError.status = response.status;
+      throw requestError;
+    }
     const json = await response.json();
     if (!Array.isArray(json)) throw new Error("Top-Level ist kein Array");
 
@@ -3363,11 +3498,20 @@ async function loadOnlineJson() {
     loadOnlineBtn.textContent = "Online JSON geladen";
   } catch (error) {
     setOnlineJsonLoaded(false);
-    loadOnlineBtn.textContent = `Fehler beim Laden (${error.message})`;
+    if (typeSelect.value === "special-faq" && error.status === 404) {
+      const faqName = getActiveGalleryName();
+      loadOnlineBtn.textContent = "FAQ nicht gefunden";
+      const shouldCreate = window.confirm(
+        `Das Spezial-FAQ "${faqName}" existiert noch nicht. Möchtest du es jetzt anlegen?`
+      );
+      if (shouldCreate) await createSpecialFaq(faqName);
+    } else {
+      loadOnlineBtn.textContent = `Fehler beim Laden (${error.message})`;
+    }
   } finally {
     setTimeout(() => {
       loadOnlineBtn.textContent = previousText;
-      loadOnlineBtn.disabled = false;
+      updateGalleryConfirmationState();
     }, 1600);
   }
 }
