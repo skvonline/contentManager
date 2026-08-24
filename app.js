@@ -56,7 +56,7 @@ const specs = {
       { name: "title", type: "text", required: true },
       { name: "date", type: "date", required: true },
       { name: "text", type: "textarea", required: true },
-      { name: "image", type: "text", filenameOnly: true, pathPrefix: "./src/img/news/" },
+      { name: "image", type: "image", filenameOnly: true, pathPrefix: "./src/img/news/" },
       { name: "publishAt", type: "datetime", placeholder: "JJJJ-MM-TT-HH:mm" },
       { name: "deleteAt", type: "datetime", required: true, placeholder: "JJJJ-MM-TT-HH:mm", allowAuto: true },
       {
@@ -88,7 +88,7 @@ const specs = {
       { name: "preis", type: "currency" },
       { name: "location", type: "text" },
       { name: "description", type: "textarea" },
-      { name: "image", type: "text", filenameOnly: true, pathPrefix: "./src/img/events/" },
+      { name: "image", type: "image", filenameOnly: true, pathPrefix: "./src/img/events/" },
       { name: "publishAt", type: "datetime", placeholder: "JJJJ-MM-TT-HH:mm" },
       { name: "deleteAt", type: "autoDeleteAt", required: true },
       {
@@ -115,7 +115,7 @@ const specs = {
     fields: [
       { name: "name", type: "text", required: true },
       { name: "role", type: "text", required: true },
-      { name: "image", type: "text", required: true, filenameOnly: true, pathPrefix: "./src/img/verein/vorstand/" },
+      { name: "image", type: "image", required: true, filenameOnly: true, pathPrefix: "./src/img/verein/vorstand/" },
       { name: "tags", type: "csv", required: true, placeholder: "Tag1, Tag2" },
       { name: "description", type: "textarea", required: true },
       {
@@ -133,7 +133,7 @@ const specs = {
     template: {
       name: "Max Mustermann",
       role: "Präsident",
-      image: "./src/img/verein/vorstand/max-mustermann.png",
+      image: { src: "./src/img/verein/vorstand/max-mustermann.png", ki: false, teilweiseKi: false },
       tags: ["Leitung"],
       description: "Kurztext",
       socials: [{ label: "E-Mail", href: "mailto:max@example.org", className: "liEmail", icon: "@" }]
@@ -145,12 +145,12 @@ const specs = {
     fields: [
       { name: "name", type: "text", required: true },
       { name: "role", type: "text", required: true },
-      { name: "image", type: "text", required: true, filenameOnly: true, pathPrefix: "./src/img/verein/elferrat/" }
+      { name: "image", type: "image", required: true, filenameOnly: true, pathPrefix: "./src/img/verein/elferrat/" }
     ],
     template: {
       name: "Erika Muster",
       role: "Programm",
-      image: "./src/img/verein/elferrat/erika-muster.svg"
+      image: { src: "./src/img/verein/elferrat/erika-muster.svg", ki: false, teilweiseKi: false }
     }
   },
   royals: {
@@ -159,14 +159,14 @@ const specs = {
     fields: [
       { name: "session", type: "text", required: true },
       { name: "year", type: "text", required: true },
-      { name: "image", type: "text", required: true, filenameOnly: true, pathPrefix: "./src/img/verein/prinzenpaare/" },
+      { name: "image", type: "image", required: true, filenameOnly: true, pathPrefix: "./src/img/verein/prinzenpaare/" },
       { name: "adultPair", type: "pairList", required: true, maxItems: 1 },
       { name: "childPair", type: "pairList", maxItems: 1 }
     ],
     template: {
       session: "48. Session",
       year: "2026/2027",
-      image: "./src/img/verein/prinzenpaare/pp2627.JPG",
+      image: { src: "./src/img/verein/prinzenpaare/pp2627.JPG", ki: false, teilweiseKi: false },
       adultPair: [{ prince: "Max I.", princess: "Mia I." }]
     }
   },
@@ -261,13 +261,13 @@ const specs = {
   },
   gallery: {
     filename: "gallerys/{xyz}.json",
-    summaryKeys: ["src", "alt"],
+    summaryKeys: ["image", "alt"],
     fields: [
-      { name: "src", type: "text", required: true, filenameOnly: true, pathPrefix: "./src/img/home-gallery/" },
+      { name: "image", type: "image", required: true, filenameOnly: true, pathPrefix: "./src/img/home-gallery/" },
       { name: "alt", type: "text" }
     ],
     template: {
-      src: "./src/img/home-gallery/01.JPG",
+      image: { src: "./src/img/home-gallery/01.JPG", ki: false, teilweiseKi: false },
       alt: "Titelbild"
     }
   },
@@ -812,7 +812,7 @@ function prunePendingManagedDeletes(activeEntries = null) {
   const activePaths = activeEntries
     ? new Set(
       activeEntries
-        .map((entry) => (entry?.[fileField.name] && typeof entry[fileField.name] === "string" ? entry[fileField.name] : ""))
+        .map((entry) => getImageSrc(entry?.[fileField.name]))
         .filter(Boolean)
         .filter((value) => !isExternalImagePath(value))
         .map((src) => src.replace(/^\.\//, ""))
@@ -848,7 +848,7 @@ function prunePendingEntryImageDeletes(activeEntries = null) {
   const activePaths = activeEntries
     ? new Set(
       activeEntries
-        .map((entry) => (entry?.image && typeof entry.image === "string" ? entry.image : ""))
+        .map((entry) => (entry?.image?.src && typeof entry.image.src === "string" ? entry.image.src : ""))
         .filter(Boolean)
         .filter((value) => !isExternalImagePath(value))
         .map((src) => src.replace(/^\.\//, ""))
@@ -872,7 +872,7 @@ function clearManagedTrackingState() {
 function getCurrentGallerySrcPathsFromInputs() {
   if (typeSelect.value !== "gallery") return new Set();
   const paths = new Set();
-  entriesEl.querySelectorAll('.entry [data-field="src"]').forEach((input) => {
+  entriesEl.querySelectorAll('.entry [data-field="image"]').forEach((input) => {
     if (input.dataset.gallerySource === "external") return;
     const filename = getGalleryImageFilenameFromValue(input.value);
     const prefix = input.dataset.pathPrefix || "";
@@ -894,7 +894,7 @@ function pruneUnusedSelectedGalleryFiles() {
 
 function getGalleryEntrySrcPath(entryEl) {
   if (!entryEl || typeSelect.value !== "gallery") return "";
-  const srcInput = entryEl.querySelector('[data-field="src"]');
+  const srcInput = entryEl.querySelector('[data-field="image"]');
   if (!srcInput) return "";
   if (srcInput.dataset.gallerySource === "external") return "";
   const filename = getGalleryImageFilenameFromValue(srcInput.value);
@@ -907,7 +907,7 @@ function prunePendingGalleryDeletes(activeEntries = null) {
   const activePaths = activeEntries
     ? new Set(
       activeEntries
-        .map((entry) => (entry?.src && typeof entry.src === "string" ? entry.src : ""))
+        .map((entry) => (entry?.image?.src && typeof entry.image.src === "string" ? entry.image.src : ""))
         .filter(Boolean)
         .map((src) => src.replace(/^\.\//, ""))
     )
@@ -1001,6 +1001,11 @@ function isExternalImagePath(value) {
   return /^https?:\/\//i.test((value || "").trim());
 }
 
+function getImageSrc(value) {
+  if (typeof value === "string") return value;
+  return value && typeof value.src === "string" ? value.src : "";
+}
+
 function isEntryImageType(typeKey = typeSelect.value) {
   return typeKey === "news" || typeKey === "events";
 }
@@ -1014,7 +1019,7 @@ function updateImagePreviewForInput(input) {
   const previewEl = input.closest(".form-field")?.querySelector(".image-preview");
   if (!previewEl) return;
 
-  if (typeSelect.value === "gallery" && input.dataset.field === "src" && input.dataset.gallerySource === "external") {
+  if (typeSelect.value === "gallery" && input.dataset.field === "image" && input.dataset.gallerySource === "external") {
     const externalUrl = input.value.trim();
     if (!externalUrl) {
       previewEl.classList.add("hidden");
@@ -1070,7 +1075,7 @@ function updateImagePreviewForInput(input) {
   }
 
   const relativeSrc = `${pathPrefix}${filename}`;
-  const isGalleryImage = typeSelect.value === "gallery" && input.dataset.field === "src";
+  const isGalleryImage = typeSelect.value === "gallery" && input.dataset.field === "image";
   const galleryRepoPath = relativeSrc.replace(/^\.\//, "");
   const selectedGalleryFile = isGalleryImage ? selectedGalleryFiles.get(galleryRepoPath) : null;
   const selectedManagedFile = !isGalleryImage ? selectedManagedFiles.get(galleryRepoPath) : null;
@@ -1467,7 +1472,9 @@ function createInput(field, value) {
   wrapper.append(label);
 
   let input;
-  const normalizedValue = field.filenameOnly ? getFilenameOnly(value) : value;
+  const imageValue = field.type === "image" && value && typeof value === "object" ? value : null;
+  const rawValue = imageValue ? imageValue.src : value;
+  const normalizedValue = field.filenameOnly ? getFilenameOnly(rawValue) : rawValue;
 
   if (field.type === "textarea") {
     input = document.createElement("textarea");
@@ -1540,8 +1547,10 @@ function createInput(field, value) {
   if (field.allowAuto) input.dataset.allowAuto = "true";
 
   if (field.filenameOnly) {
+    const previewWrap = document.createElement("div");
+    previewWrap.className = "image-preview-wrap";
     const preview = document.createElement("img");
-    preview.className = "image-preview hidden";
+    preview.className = "image-preview";
     preview.loading = "lazy";
     preview.decoding = "async";
     preview.alt = "Bildvorschau";
@@ -1556,8 +1565,39 @@ function createInput(field, value) {
       preview.removeAttribute("src");
       delete preview.dataset.fallbackSrc;
     });
-    wrapper.append(preview);
+    previewWrap.append(preview);
+    wrapper.append(previewWrap);
     updateImagePreviewForInput(input);
+  }
+
+  if (field.type === "image") {
+    const options = document.createElement("div");
+    options.className = "image-options";
+    options.innerHTML = `
+      <label><input type="checkbox" data-image-meta="ki"> KI</label>
+      <label><input type="checkbox" data-image-meta="teilweiseKi"> Teilweise KI</label>
+      <label>Label-Farbe
+        <select data-image-meta="theme">
+          <option value="">Keine</option><option value="black">Schwarz</option><option value="white">Weiß</option>
+        </select>
+      </label>`;
+    const kiInput = options.querySelector('[data-image-meta="ki"]');
+    const partialInput = options.querySelector('[data-image-meta="teilweiseKi"]');
+    const themeInput = options.querySelector('[data-image-meta="theme"]');
+    kiInput.checked = Boolean(imageValue?.ki);
+    partialInput.checked = Boolean(imageValue?.teilweiseKi);
+    themeInput.value = imageValue?.theme || "";
+    kiInput.addEventListener("change", () => {
+      if (kiInput.checked) partialInput.checked = false;
+      updateImageLabelPreview(input);
+    });
+    partialInput.addEventListener("change", () => {
+      if (partialInput.checked) kiInput.checked = false;
+      updateImageLabelPreview(input);
+    });
+    themeInput.addEventListener("change", () => updateImageLabelPreview(input));
+    wrapper.append(options);
+    updateImageLabelPreview(input);
   }
 
   if (field.htmlEditor && field.type === "textarea") {
@@ -1575,6 +1615,22 @@ function createInput(field, value) {
   }
 
   return { wrapper, input };
+}
+
+function updateImageLabelPreview(input) {
+  const wrapper = input?.closest(".form-field");
+  const previewWrap = wrapper?.querySelector(".image-preview-wrap");
+  if (!previewWrap) return;
+  previewWrap.querySelector(".image-ai-label")?.remove();
+  const ki = Boolean(wrapper.querySelector('[data-image-meta="ki"]')?.checked);
+  const teilweiseKi = Boolean(wrapper.querySelector('[data-image-meta="teilweiseKi"]')?.checked);
+  const theme = wrapper.querySelector('[data-image-meta="theme"]')?.value;
+  if ((!ki && !teilweiseKi) || !theme) return;
+  const label = document.createElement("img");
+  label.className = "image-ai-label";
+  label.alt = ki ? `KI-Label (${theme})` : `Teilweise-KI-Label (${theme})`;
+  label.src = `${CONFIG.DEFAULT_ASSET_BASE_URL.replace(/\/$/, "")}/src/img/ki_labels/${ki ? "ki" : "teilweise_ki"}_${theme}.png`;
+  previewWrap.append(label);
 }
 
 function addListItem(field, container, value = {}, onChange = () => {}) {
@@ -1721,7 +1777,7 @@ async function fetchInternalGalleryImages() {
   const imageNameSet = new Set();
 
   const knownFilenames = new Set();
-  entriesEl.querySelectorAll('.entry [data-field="src"]').forEach((input) => {
+  entriesEl.querySelectorAll('.entry [data-field="image"]').forEach((input) => {
     const filename = getGalleryImageFilenameFromValue(input.value);
     if (filename) knownFilenames.add(filename);
   });
@@ -1902,7 +1958,7 @@ function openInternalGalleryImageDialog(filenames, options = {}) {
 }
 
 async function startGalleryImageReplacement(entryEl) {
-  const srcInput = entryEl?.querySelector('[data-field="src"]');
+  const srcInput = entryEl?.querySelector('[data-field="image"]');
   if (!srcInput) return;
 
   const previousSrcPath = getGalleryEntrySrcPath(entryEl);
@@ -2051,6 +2107,20 @@ function readEntry(entryEl) {
     const name = input.dataset.field;
     const type = input.dataset.fieldType;
 
+    if (type === "image") {
+      const value = input.value.trim();
+      if (!value) return;
+      const src = input.dataset.filenameOnly === "true"
+        ? `${input.dataset.pathPrefix || ""}${getFilenameOnly(value)}`
+        : value;
+      const wrapper = input.closest(".form-field");
+      const ki = Boolean(wrapper?.querySelector('[data-image-meta="ki"]')?.checked);
+      const teilweiseKi = Boolean(wrapper?.querySelector('[data-image-meta="teilweiseKi"]')?.checked);
+      const theme = wrapper?.querySelector('[data-image-meta="theme"]')?.value || "";
+      data[name] = { src, ki, teilweiseKi, ...(theme ? { theme } : {}) };
+      return;
+    }
+
     if (type === "checkbox") {
       if (input.checked) data[name] = true;
       return;
@@ -2093,7 +2163,7 @@ function readEntry(entryEl) {
       return;
     }
 
-    if (typeSelect.value === "gallery" && name === "src" && input.dataset.gallerySource === "external") {
+    if (typeSelect.value === "gallery" && name === "image" && input.dataset.gallerySource === "external") {
       data[name] = value;
       return;
     }
@@ -2308,6 +2378,25 @@ function validate(entries, typeKey) {
       }
     }
 
+    if (entry.image && typeof entry.image === "object") {
+      const imageInput = entryEl.querySelector('[data-field="image"]');
+      if (typeof entry.image.src !== "string" || !entry.image.src.trim()) {
+        errors.push({ text: `Eintrag ${idx + 1}: image.src ist erforderlich.`, element: imageInput });
+      }
+      if (typeof entry.image.ki !== "boolean" || typeof entry.image.teilweiseKi !== "boolean") {
+        errors.push({ text: `Eintrag ${idx + 1}: image.ki und image.teilweiseKi müssen Boolean-Werte sein.`, element: imageInput });
+      }
+      if (entry.image.ki && entry.image.teilweiseKi) {
+        errors.push({ text: `Eintrag ${idx + 1}: ki und teilweiseKi dürfen nicht gleichzeitig true sein.`, element: imageInput });
+      }
+      if ((entry.image.ki || entry.image.teilweiseKi) && !["black", "white"].includes(entry.image.theme)) {
+        errors.push({ text: `Eintrag ${idx + 1}: Gekennzeichnete Bilder benötigen theme "black" oder "white".`, element: imageInput });
+      }
+      if (entry.image.theme && !["black", "white"].includes(entry.image.theme)) {
+        errors.push({ text: `Eintrag ${idx + 1}: image.theme darf nur "black" oder "white" sein.`, element: imageInput });
+      }
+    }
+
     if (entry.publishAt && entry.deleteAt && windowRegex.test(entry.publishAt) && windowRegex.test(entry.deleteAt)) {
       if (parseDateWindow(entry.publishAt) >= parseDateWindow(entry.deleteAt)) {
         const publishInput = entryEl.querySelector('[data-field="publishAt"]');
@@ -2364,7 +2453,7 @@ function expandEntry(entryEl) {
 
 function getEntrySummary(data, typeKey, index) {
   const summaryKeys = specs[typeKey].summaryKeys || [];
-  const parts = summaryKeys.map((key) => data[key]).filter(Boolean);
+  const parts = summaryKeys.map((key) => key === "image" ? getImageSrc(data[key]) : data[key]).filter(Boolean);
   if (parts.length === 0) return `Eintrag ${index + 1}`;
   return `Eintrag ${index + 1}: ${parts.join(" | ")}`;
 }
@@ -2492,7 +2581,7 @@ function addEntry(defaults = {}, { expand = true, insert = "auto", scrollToEntry
   body.className = "entry-body";
 
   spec.fields.forEach((field) => {
-    const effectiveField = typeKey === "gallery" && field.name === "src"
+    const effectiveField = typeKey === "gallery" && field.name === "image"
       ? { ...field, pathPrefix: getGalleryImagePrefix() }
       : field;
 
@@ -2500,9 +2589,12 @@ function addEntry(defaults = {}, { expand = true, insert = "auto", scrollToEntry
     if (field.type === "list" || field.type === "pairList") {
       body.append(createListBlock(effectiveField, defaults[field.name]));
     } else {
-      const { wrapper, input } = createInput(effectiveField, defaults[field.name]);
-      if (typeKey === "gallery" && field.name === "src") {
-        const srcValue = typeof defaults[field.name] === "string" ? defaults[field.name] : "";
+      const defaultValue = typeKey === "gallery" && field.name === "image" && defaults.image == null
+        ? defaults.src
+        : defaults[field.name];
+      const { wrapper, input } = createInput(effectiveField, defaultValue);
+      if (typeKey === "gallery" && field.name === "image") {
+        const srcValue = getImageSrc(defaultValue);
         const sourceMode = isExternalImagePath(srcValue) ? "external" : "repo";
         input.readOnly = true;
         setGallerySrcInputMode(input, sourceMode, srcValue);
@@ -2522,7 +2614,7 @@ function addEntry(defaults = {}, { expand = true, insert = "auto", scrollToEntry
         else wrapper.append(changeBtn);
       }
       if (isManagedFileType(typeKey) && field.filenameOnly) {
-        const managedValue = typeof defaults[field.name] === "string" ? defaults[field.name] : "";
+        const managedValue = getImageSrc(defaults[field.name]);
         const managedMode = isExternalImagePath(managedValue) ? "external" : "repo";
         input.readOnly = true;
         setManagedFileInputMode(input, managedMode, managedValue);
@@ -2542,7 +2634,7 @@ function addEntry(defaults = {}, { expand = true, insert = "auto", scrollToEntry
         }
       }
       if (isEntryImageType(typeKey) && field.name === "image" && field.filenameOnly) {
-        const imageValue = typeof defaults[field.name] === "string" ? defaults[field.name] : "";
+        const imageValue = typeof defaults[field.name]?.src === "string" ? defaults[field.name].src : (typeof defaults[field.name] === "string" ? defaults[field.name] : "");
         const imageMode = isExternalImagePath(imageValue) ? "external" : "repo";
         input.readOnly = true;
         setEntryImageInputMode(input, imageMode, imageValue);
@@ -2597,7 +2689,7 @@ function validateAndGenerate() {
   });
   const activeGalleryPaths = new Set(
     entries
-      .map((entry) => (entry?.src && typeof entry.src === "string" ? entry.src.replace(/^\.\//, "") : ""))
+      .map((entry) => (entry?.image?.src && typeof entry.image.src === "string" ? entry.image.src.replace(/^\.\//, "") : ""))
       .filter(Boolean)
   );
   [...detachedGalleryUploads].forEach((filePath) => {
@@ -3359,7 +3451,7 @@ async function commitGeneratedJson() {
     if (typeSelect.value === "gallery") {
       const galleryFilePaths = new Set(
         parsedJson
-          .map((entry) => (entry?.src && typeof entry.src === "string" ? entry.src : ""))
+          .map((entry) => (entry?.image?.src && typeof entry.image.src === "string" ? entry.image.src : ""))
           .filter(Boolean)
           .map((src) => src.replace(/^\.\//, ""))
       );
@@ -3386,7 +3478,7 @@ async function commitGeneratedJson() {
       const fileField = getManagedFilenameField();
       const managedFilePaths = new Set(
         parsedJson
-          .map((entry) => (entry?.[fileField.name] && typeof entry[fileField.name] === "string" ? entry[fileField.name] : ""))
+          .map((entry) => getImageSrc(entry?.[fileField.name]))
           .filter(Boolean)
           .filter((value) => !isExternalImagePath(value))
           .map((src) => src.replace(/^\.\//, ""))
@@ -3413,7 +3505,7 @@ async function commitGeneratedJson() {
     if (isEntryImageType()) {
       const entryImagePaths = new Set(
         parsedJson
-          .map((entry) => (entry?.image && typeof entry.image === "string" ? entry.image : ""))
+          .map((entry) => (entry?.image?.src && typeof entry.image.src === "string" ? entry.image.src : ""))
           .filter(Boolean)
           .filter((value) => !isExternalImagePath(value))
           .map((src) => src.replace(/^\.\//, ""))
@@ -3546,7 +3638,7 @@ addEntryBtn.addEventListener("click", async () => {
     if (!file) return;
     if (typeSelect.value === "gallery") {
       rememberGalleryFiles([file]);
-      addEntry({ src: file.name, alt: "" });
+      addEntry({ image: { src: file.name, ki: false, teilweiseKi: false }, alt: "" });
     } else {
       rememberManagedFiles([file]);
       const field = getManagedFilenameField();
@@ -3578,7 +3670,7 @@ addEntryBtn.addEventListener("click", async () => {
         });
       if (!selectedFile) return;
       if (typeSelect.value === "gallery") {
-        addEntry({ src: selectedFile, alt: "" });
+        addEntry({ image: { src: selectedFile, ki: false, teilweiseKi: false }, alt: "" });
       } else {
         const field = getManagedFilenameField();
         if (!field) return;
@@ -3599,7 +3691,7 @@ addEntryBtn.addEventListener("click", async () => {
       return;
     }
     if (typeSelect.value === "gallery") {
-      addEntry({ src: link.trim(), alt: "" });
+      addEntry({ image: { src: link.trim(), ki: false, teilweiseKi: false }, alt: "" });
     } else {
       const field = getManagedFilenameField();
       if (!field) return;
