@@ -55,13 +55,13 @@
             <select id="typeSelect"></select>
           </div>
           <div id="galleryNameWrap" class="hidden">
-            <label for="galleryNameInput">Galerie-Ordnername / Dateiname (ohne .json)</label>
+            <label for="galleryNameInput">Dateiname (ohne .json)</label>
             <div class="gallery-name-row">
               <input id="galleryNameInput" type="text" value="home-gallery" />
-              <button id="confirmGalleryBtn" type="button">Ordner bestätigen</button>
+              <button id="confirmGalleryBtn" type="button">Dateiname bestätigen</button>
             </div>
             <p id="galleryConfirmHint" class="gallery-confirm-hint">
-              Bitte Ordnernamen bestätigen, bevor Einträge geladen oder erstellt werden.
+              Bitte Dateinamen bestätigen, bevor Einträge geladen oder erstellt werden.
             </p>
           </div>
         </div>
@@ -247,6 +247,39 @@
           <button id="galleryDeletePreviewBtn" type="button">Vorschau aktualisieren</button>
           <button id="galleryDeleteCommitBtn" type="button">Direkt committen</button>
           <button id="galleryDeleteCancelBtn" type="button" class="secondary-button">Schließen</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="specialFaqCreateDialog" class="confirm-dialog">
+      <form id="specialFaqCreateForm" method="dialog" class="confirm-dialog-form">
+        <h2>Neues Spezial-FAQ anlegen</h2>
+        <p>
+          Die FAQ-Datei existiert noch nicht. Es werden eine neue Seite unter
+          <code id="specialFaqPagePath"></code> und die zugehörige JSON-Datei angelegt.
+        </p>
+
+        <label for="specialFaqEyebrowInput">Kurze Überschrift</label>
+        <input id="specialFaqEyebrowInput" type="text" required />
+
+        <label for="specialFaqTitleInput">FAQ-Titel</label>
+        <input id="specialFaqTitleInput" type="text" required />
+
+        <label for="specialFaqIntroInput">Kurze Einleitung</label>
+        <textarea id="specialFaqIntroInput" required></textarea>
+
+        <label for="specialFaqJsonPathInput">Pfad des JSONs</label>
+        <input id="specialFaqJsonPathInput" type="text" required />
+
+        <label for="specialFaqClosingTitleInput">Abschluss Überschrift</label>
+        <input id="specialFaqClosingTitleInput" type="text" required />
+
+        <label for="specialFaqClosingTextInput">Abschluss Text</label>
+        <textarea id="specialFaqClosingTextInput" required></textarea>
+
+        <div class="actions">
+          <button type="submit">FAQ anlegen und committen</button>
+          <button id="specialFaqCreateCancelBtn" type="button" class="secondary-button">Abbrechen</button>
         </div>
       </form>
     </dialog>

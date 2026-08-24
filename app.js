@@ -270,6 +270,18 @@ const specs = {
       src: "./src/img/home-gallery/01.JPG",
       alt: "Titelbild"
     }
+  },
+  "special-faq": {
+    filename: "faqs/{xyz}.json",
+    summaryKeys: ["frage"],
+    fields: [
+      { name: "frage", type: "text", required: true },
+      { name: "antwort", type: "textarea", required: true, htmlEditor: true }
+    ],
+    template: {
+      frage: "Wie bekomme ich Karten für eure Veranstaltungen?",
+      antwort: "<p>Informationen zur Kartenvorbestellung und zum freien Verkauf findet ihr hier.</p>"
+    }
   }
 };
 
@@ -346,7 +358,19 @@ const galleryDeletePreviewPaths = document.querySelector("#galleryDeletePreviewP
 const galleryDeletePreviewBtn = document.querySelector("#galleryDeletePreviewBtn");
 const galleryDeleteCommitBtn = document.querySelector("#galleryDeleteCommitBtn");
 const galleryDeleteCancelBtn = document.querySelector("#galleryDeleteCancelBtn");
+const specialFaqCreateDialog = document.querySelector("#specialFaqCreateDialog");
+const specialFaqCreateForm = document.querySelector("#specialFaqCreateForm");
+const specialFaqPagePath = document.querySelector("#specialFaqPagePath");
+const specialFaqEyebrowInput = document.querySelector("#specialFaqEyebrowInput");
+const specialFaqTitleInput = document.querySelector("#specialFaqTitleInput");
+const specialFaqIntroInput = document.querySelector("#specialFaqIntroInput");
+const specialFaqJsonPathInput = document.querySelector("#specialFaqJsonPathInput");
+const specialFaqClosingTitleInput = document.querySelector("#specialFaqClosingTitleInput");
+const specialFaqClosingTextInput = document.querySelector("#specialFaqClosingTextInput");
+const specialFaqCreateCancelBtn = document.querySelector("#specialFaqCreateCancelBtn");
 const DEFAULT_GALLERY_NAME = "home-gallery";
+const DEFAULT_SPECIAL_FAQ_NAME = "kartenverkauf";
+const DYNAMIC_FILE_TYPES = new Set(["gallery", "special-faq"]);
 const MANAGED_FILE_TYPES = new Set(["vorstand", "elferrat", "royals", "downloads"]);
 let confirmedGalleryName = "";
 let galleryNameConfirmed = false;
@@ -596,7 +620,15 @@ function toCurrencyInputValue(value) {
 }
 
 function updateTypeDependentUi() {
-  galleryNameWrap.classList.toggle("hidden", typeSelect.value !== "gallery");
+  const isDynamicFileType = DYNAMIC_FILE_TYPES.has(typeSelect.value);
+  galleryNameWrap.classList.toggle("hidden", !isDynamicFileType);
+  const nameLabel = galleryNameWrap?.querySelector('label[for="galleryNameInput"]');
+  if (nameLabel) {
+    nameLabel.textContent = typeSelect.value === "gallery"
+      ? "Galerie-Ordnername / Dateiname (ohne .json)"
+      : "FAQ-Dateiname (ohne .json)";
+  }
+  if (confirmGalleryBtn) confirmGalleryBtn.textContent = typeSelect.value === "gallery" ? "Ordner bestätigen" : "Dateiname bestätigen";
   const showGalleryOverviewActions = typeSelect.value === "gallery-overview";
   createGalleryScaffoldBtn?.classList.toggle("hidden", !showGalleryOverviewActions);
   deleteGalleryScaffoldBtn?.classList.toggle("hidden", !showGalleryOverviewActions);
@@ -610,7 +642,8 @@ function normalizeGalleryName(value) {
 }
 
 function getActiveGalleryName() {
-  return confirmedGalleryName || normalizeGalleryName(galleryNameInput.value) || DEFAULT_GALLERY_NAME;
+  const defaultName = typeSelect.value === "special-faq" ? DEFAULT_SPECIAL_FAQ_NAME : DEFAULT_GALLERY_NAME;
+  return confirmedGalleryName || normalizeGalleryName(galleryNameInput.value) || defaultName;
 }
 
 function getGalleryImagePrefix() {
@@ -628,41 +661,42 @@ function setGalleryHint(text, { warning = false } = {}) {
 }
 
 function updateGalleryConfirmationState() {
-  const isGalleryType = typeSelect.value === "gallery";
+  const isDynamicFileType = DYNAMIC_FILE_TYPES.has(typeSelect.value);
   const currentName = normalizeGalleryName(galleryNameInput?.value);
-  const needsConfirmation = isGalleryType && (!galleryNameConfirmed || currentName !== confirmedGalleryName);
+  const needsConfirmation = isDynamicFileType && (!galleryNameConfirmed || currentName !== confirmedGalleryName);
 
   loadOnlineBtn.disabled = needsConfirmation;
   addEntryBtn.disabled = needsConfirmation || !onlineJsonLoaded;
 
-  if (!isGalleryType) {
-    setGalleryHint("Bitte Ordnernamen bestätigen, bevor Einträge geladen oder erstellt werden.");
+  if (!isDynamicFileType) {
+    setGalleryHint("Bitte Namen bestätigen, bevor Einträge geladen oder erstellt werden.");
     return;
   }
 
   if (needsConfirmation) {
-    setGalleryHint("Bitte den Ordnernamen bestätigen. Danach kannst du Online-JSON laden oder Einträge hinzufügen.", { warning: true });
+    setGalleryHint("Bitte den Dateinamen bestätigen. Danach kannst du Online-JSON laden oder Einträge hinzufügen.", { warning: true });
     return;
   }
 
-  setGalleryHint(`Ordner bestätigt: ${confirmedGalleryName}. Du kannst jetzt laden oder Einträge hinzufügen.`);
+  setGalleryHint(`Dateiname bestätigt: ${confirmedGalleryName}. Du kannst jetzt laden oder Einträge hinzufügen.`);
 }
 
 function confirmGalleryName() {
-  if (typeSelect.value !== "gallery") return;
-  const normalizedName = normalizeGalleryName(galleryNameInput.value) || DEFAULT_GALLERY_NAME;
+  if (!DYNAMIC_FILE_TYPES.has(typeSelect.value)) return;
+  const defaultName = typeSelect.value === "special-faq" ? DEFAULT_SPECIAL_FAQ_NAME : DEFAULT_GALLERY_NAME;
+  const normalizedName = normalizeGalleryName(galleryNameInput.value) || defaultName;
   const isNameChange = galleryNameConfirmed && normalizedName !== confirmedGalleryName;
 
   if (isNameChange && hasEntries()) {
     const shouldClearEntries = window.confirm(
-      `Der Ordner wurde geändert von "${confirmedGalleryName}" auf "${normalizedName}". Alle aktuellen Einträge werden gelöscht. Fortfahren?`
+      `Der Dateiname wurde geändert von "${confirmedGalleryName}" auf "${normalizedName}". Alle aktuellen Einträge werden gelöscht. Fortfahren?`
     );
     if (!shouldClearEntries) {
       galleryNameInput.value = confirmedGalleryName;
       updateGalleryConfirmationState();
       return;
     }
-    renderEntries("gallery");
+    renderEntries(typeSelect.value);
     [...selectedGalleryFiles.values()].forEach((item) => {
       if (item?.objectUrl) URL.revokeObjectURL(item.objectUrl);
     });
@@ -1524,6 +1558,20 @@ function createInput(field, value) {
     });
     wrapper.append(preview);
     updateImagePreviewForInput(input);
+  }
+
+  if (field.htmlEditor && field.type === "textarea") {
+    input.classList.add("html-answer-source");
+    input.hidden = true;
+    const preview = document.createElement("div");
+    preview.className = "html-answer-preview";
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "secondary-button";
+    editButton.textContent = "HTML bearbeiten";
+    editButton.addEventListener("click", () => openHtmlEditor(input));
+    wrapper.append(preview, editButton);
+    refreshAnswerPreview(input);
   }
 
   return { wrapper, input };
@@ -2601,7 +2649,132 @@ function getFetchUrl() {
     return `${base}/src/data/gallerys/${galleryName}.json`;
   }
 
+  if (typeSelect.value === "special-faq") {
+    return `${base}/src/data/faqs/${getActiveGalleryName()}.json`;
+  }
+
   return `${base}/src/data/${specs[typeSelect.value].filename}`;
+}
+
+function replaceAllLiteral(value, search, replacement) {
+  return value.split(search).join(replacement);
+}
+
+function escapeHtmlAttribute(value) {
+  return escapeHtml(value).replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function buildSpecialFaqHtml(template, values) {
+  let html = template;
+  const replacements = [
+    ["Kurze Überschrift", escapeHtml(values.eyebrow)],
+    ["FAQ-Titel", escapeHtml(values.title)],
+    ["Einleitung für das Spezial-FAQ.", escapeHtml(values.intro)],
+    ["Abschluss Überschrift", escapeHtml(values.closingTitle)],
+    ["Abschluss Text", escapeHtml(values.closingText)],
+    ["../../src/data/faqs/NAME.json", escapeHtmlAttribute(values.jsonPath)]
+  ];
+  replacements.forEach(([placeholder, replacement]) => {
+    html = replaceAllLiteral(html, placeholder, replacement);
+  });
+  return html;
+}
+
+function openSpecialFaqCreateDialog(faqName) {
+  const defaultJsonPath = `../../src/data/faqs/${faqName}.json`;
+  if (!specialFaqCreateDialog || !specialFaqCreateForm || typeof specialFaqCreateDialog.showModal !== "function") {
+    const title = window.prompt("FAQ-Titel:", faqName);
+    if (!title) return Promise.resolve(null);
+    return Promise.resolve({
+      eyebrow: window.prompt("Kurze Überschrift:", "Häufige Fragen") || "Häufige Fragen",
+      title,
+      intro: window.prompt("Kurze Einleitung:", "Antworten auf häufig gestellte Fragen.") || "",
+      jsonPath: window.prompt("Pfad des JSONs:", defaultJsonPath) || defaultJsonPath,
+      closingTitle: window.prompt("Abschluss Überschrift:", "Noch Fragen?") || "",
+      closingText: window.prompt("Abschluss Text:", "Kontaktiert uns gerne.") || ""
+    });
+  }
+
+  specialFaqPagePath.textContent = `faq/${faqName}/index.html`;
+  specialFaqEyebrowInput.value = "";
+  specialFaqTitleInput.value = "";
+  specialFaqIntroInput.value = "";
+  specialFaqJsonPathInput.value = defaultJsonPath;
+  specialFaqClosingTitleInput.value = "";
+  specialFaqClosingTextInput.value = "";
+
+  return new Promise((resolve) => {
+    const closeDialog = (result = null) => {
+      specialFaqCreateForm.removeEventListener("submit", handleSubmit);
+      specialFaqCreateCancelBtn?.removeEventListener("click", handleCancel);
+      specialFaqCreateDialog.removeEventListener("cancel", handleCancel);
+      if (specialFaqCreateDialog.open) specialFaqCreateDialog.close();
+      resolve(result);
+    };
+    const handleSubmit = (event) => {
+      event.preventDefault();
+      if (!specialFaqCreateForm.reportValidity()) return;
+      closeDialog({
+        eyebrow: specialFaqEyebrowInput.value.trim(),
+        title: specialFaqTitleInput.value.trim(),
+        intro: specialFaqIntroInput.value.trim(),
+        jsonPath: specialFaqJsonPathInput.value.trim(),
+        closingTitle: specialFaqClosingTitleInput.value.trim(),
+        closingText: specialFaqClosingTextInput.value.trim()
+      });
+    };
+    const handleCancel = () => closeDialog(null);
+    specialFaqCreateForm.addEventListener("submit", handleSubmit);
+    specialFaqCreateCancelBtn?.addEventListener("click", handleCancel);
+    specialFaqCreateDialog.addEventListener("cancel", handleCancel);
+    specialFaqCreateDialog.showModal();
+    specialFaqEyebrowInput.focus();
+  });
+}
+
+async function createSpecialFaq(faqName) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(faqName)) {
+    window.alert("Der FAQ-Dateiname darf nur Buchstaben, Zahlen, Bindestriche und Unterstriche enthalten.");
+    return false;
+  }
+  const values = await openSpecialFaqCreateDialog(faqName);
+  if (!values) return false;
+
+  const commitInput = await openCommitDialog(`Create special FAQ ${faqName}`);
+  if (!commitInput) return false;
+
+  setCommitStatus("FAQ-Vorlage wird geladen...");
+  const branch = getTargetBranch();
+  const owner = CONFIG.GITHUB_OWNER;
+  const repo = CONFIG.GITHUB_REPO;
+  try {
+    const sourceBranch = encodeURIComponent(getSourceBranch());
+    const templateUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sourceBranch}/src/data/faqs/vorlage_faq.html`;
+    const templateResponse = await fetch(templateUrl, { cache: "no-store" });
+    if (!templateResponse.ok) throw new Error(`FAQ-Vorlage konnte nicht geladen werden (HTTP ${templateResponse.status}).`);
+    const html = buildSpecialFaqHtml(await templateResponse.text(), values);
+    const headSha = await ensureBranchExists({ owner, repo, branch, token: commitInput.token, baseBranch: getSourceBranch() });
+    const commitSha = await createSingleGitHubCommit({
+      owner,
+      repo,
+      branch,
+      token: commitInput.token,
+      message: commitInput.commitMessage,
+      headSha,
+      files: [
+        { path: `faq/${faqName}/index.html`, contentBase64: toBase64Utf8(html.endsWith("\n") ? html : `${html}\n`) },
+        { path: `src/data/faqs/${faqName}.json`, contentBase64: toBase64Utf8("[]\n") }
+      ]
+    });
+    const commitUrl = `https://github.com/${owner}/${repo}/commit/${commitSha}`;
+    renderEntries("special-faq", []);
+    setOnlineJsonLoaded(true);
+    setCommitStatus(`Spezial-FAQ erfolgreich angelegt: <a href="${commitUrl}" target="_blank" rel="noopener noreferrer">Commit ansehen</a>`, "success");
+    return true;
+  } catch (error) {
+    setCommitStatus(`Spezial-FAQ konnte nicht angelegt werden: ${escapeHtml(error.message)}`, "error");
+    return false;
+  }
 }
 
 
@@ -2806,6 +2979,9 @@ function getDataPath() {
   if (typeSelect.value === "gallery") {
     const galleryName = getActiveGalleryName();
     return `src/data/gallerys/${galleryName}.json`;
+  }
+  if (typeSelect.value === "special-faq") {
+    return `src/data/faqs/${getActiveGalleryName()}.json`;
   }
   return `src/data/${specs[typeSelect.value].filename}`;
 }
@@ -3299,7 +3475,11 @@ async function loadOnlineJson() {
 
   try {
     const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      const requestError = new Error(`HTTP ${response.status}`);
+      requestError.status = response.status;
+      throw requestError;
+    }
     const json = await response.json();
     if (!Array.isArray(json)) throw new Error("Top-Level ist kein Array");
 
@@ -3318,19 +3498,30 @@ async function loadOnlineJson() {
     loadOnlineBtn.textContent = "Online JSON geladen";
   } catch (error) {
     setOnlineJsonLoaded(false);
-    loadOnlineBtn.textContent = `Fehler beim Laden (${error.message})`;
+    if (typeSelect.value === "special-faq" && error.status === 404) {
+      const faqName = getActiveGalleryName();
+      loadOnlineBtn.textContent = "FAQ nicht gefunden";
+      const shouldCreate = window.confirm(
+        `Das Spezial-FAQ "${faqName}" existiert noch nicht. Möchtest du es jetzt anlegen?`
+      );
+      if (shouldCreate) await createSpecialFaq(faqName);
+    } else {
+      loadOnlineBtn.textContent = `Fehler beim Laden (${error.message})`;
+    }
   } finally {
     setTimeout(() => {
       loadOnlineBtn.textContent = previousText;
-      loadOnlineBtn.disabled = false;
+      updateGalleryConfirmationState();
     }, 1600);
   }
 }
 
 typeSelect.addEventListener("change", () => {
   setOnlineJsonLoaded(false);
-  if (typeSelect.value === "gallery" && !galleryNameConfirmed) {
-    galleryNameInput.value = DEFAULT_GALLERY_NAME;
+  confirmedGalleryName = "";
+  galleryNameConfirmed = false;
+  if (DYNAMIC_FILE_TYPES.has(typeSelect.value)) {
+    galleryNameInput.value = typeSelect.value === "special-faq" ? DEFAULT_SPECIAL_FAQ_NAME : DEFAULT_GALLERY_NAME;
   }
   pendingGalleryScaffoldFiles = [];
   updateTypeDependentUi();
@@ -3470,7 +3661,7 @@ targetBranchInput?.addEventListener("change", () => {
 });
 
 galleryNameInput.addEventListener("input", () => {
-  if (typeSelect.value !== "gallery") return;
+  if (!DYNAMIC_FILE_TYPES.has(typeSelect.value)) return;
   updateGalleryConfirmationState();
   resetValidationUi();
 });
@@ -3496,9 +3687,8 @@ downloadBtn.addEventListener("click", () => {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
 
-  if (typeSelect.value === "gallery") {
-    const galleryName = getActiveGalleryName();
-    a.download = `${galleryName}.json`;
+  if (DYNAMIC_FILE_TYPES.has(typeSelect.value)) {
+    a.download = `${getActiveGalleryName()}.json`;
   } else {
     a.download = specs[typeSelect.value].filename;
   }

@@ -812,3 +812,42 @@ Mit **Autoformat** kann die Formatierung nach weiteren Änderungen jederzeit ern
   }
 ]
 ```
+
+---
+
+## 13) Dateien: `faqs/{xyz}.json`
+
+Pfad: `./src/data/faqs/{xyz}.json`
+
+### 13.1 Zweck
+
+Eigenständige, themenspezifische FAQ-Dateien. Der technische Dateiname wird im Generator wie bei
+`gallerys/{xyz}.json` vor dem Laden oder Bearbeiten bestätigt.
+
+### 13.2 Felder pro Eintrag
+
+| Feld      | Typ      | Pflicht | Beschreibung           |
+|-----------|----------|----------|------------------------|
+| `frage`   | `string` | Ja       | Angezeigte Frage.      |
+| `antwort` | `string` | Ja       | Antwort als HTML-Text. |
+
+### 13.3 Vorlage
+
+```json
+[
+  {
+    "frage": "Wie bekomme ich Karten für eure Veranstaltungen?",
+    "antwort": "<p>Informationen zur Kartenvorbestellung und zum freien Verkauf findet ihr hier.</p>"
+  }
+]
+```
+
+### 13.4 Neues Spezial-FAQ anlegen
+
+Wird beim Online-Laden ein noch nicht vorhandener FAQ-Dateiname verwendet, bietet der Generator an, das Spezial-FAQ
+anzulegen. Dabei werden die Inhalte für kurze Überschrift, FAQ-Titel, Einleitung, JSON-Pfad, Abschlussüberschrift und
+Abschlusstext abgefragt. Anschließend wird `src/data/faqs/vorlage_faq.html` geladen und zusammen mit einer zunächst
+leeren JSON-Datei in einem Commit als folgende Dateien angelegt:
+
+- `faq/{xyz}/index.html`
+- `src/data/faqs/{xyz}.json`
