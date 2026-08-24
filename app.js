@@ -330,6 +330,7 @@ const htmlEditorForm = document.querySelector("#htmlEditorForm");
 const htmlEditorInput = document.querySelector("#htmlEditorInput");
 const htmlEditorHighlight = document.querySelector("#htmlEditorHighlight");
 const cancelHtmlEditorBtn = document.querySelector("#cancelHtmlEditorBtn");
+const formatHtmlEditorBtn = document.querySelector("#formatHtmlEditorBtn");
 const galleryCreateDialog = document.querySelector("#galleryCreateDialog");
 const galleryCreateTechName = document.querySelector("#galleryCreateTechName");
 const galleryCreateDisplayName = document.querySelector("#galleryCreateDisplayName");
@@ -384,6 +385,47 @@ function syncHtmlEditorHighlight() {
   htmlEditorHighlight.scrollLeft = htmlEditorInput.scrollLeft;
 }
 
+function formatHtml(value) {
+  const template = document.createElement("template");
+  template.innerHTML = value || "";
+  const lines = [];
+  const voidTags = new Set(["AREA", "BASE", "BR", "COL", "EMBED", "HR", "IMG", "INPUT", "LINK", "META", "PARAM", "SOURCE", "TRACK", "WBR"]);
+
+  const formatNode = (node, depth) => {
+    const indentation = "  ".repeat(depth);
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textValue = node.textContent.replace(/\s+/g, " ").trim();
+      if (textValue) lines.push(`${indentation}${escapeHtml(textValue)}`);
+      return;
+    }
+    if (node.nodeType === Node.COMMENT_NODE) {
+      lines.push(`${indentation}<!--${node.textContent.trim()}-->`);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tag = node.tagName.toLowerCase();
+    const attributes = [...node.attributes]
+      .map((attribute) => ` ${attribute.name}="${attribute.value.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"`)
+      .join("");
+    lines.push(`${indentation}<${tag}${attributes}>`);
+    if (voidTags.has(node.tagName)) return;
+    node.childNodes.forEach((child) => formatNode(child, depth + 1));
+    lines.push(`${indentation}</${tag}>`);
+  };
+
+  template.content.childNodes.forEach((node) => formatNode(node, 0));
+  return lines.join("\n");
+}
+
+function autoformatHtmlEditor() {
+  if (!htmlEditorInput) return;
+  htmlEditorInput.value = formatHtml(htmlEditorInput.value);
+  syncHtmlEditorHighlight();
+  htmlEditorInput.focus();
+  htmlEditorInput.setSelectionRange(htmlEditorInput.value.length, htmlEditorInput.value.length);
+}
+
 function sanitizeAnswerHtml(value) {
   const template = document.createElement("template");
   template.innerHTML = value || "";
@@ -418,7 +460,7 @@ function closeHtmlEditor() {
 function openHtmlEditor(input) {
   if (!htmlEditorDialog || !htmlEditorInput) return;
   activeHtmlAnswerInput = input;
-  htmlEditorInput.value = input.value;
+  htmlEditorInput.value = formatHtml(input.value);
   syncHtmlEditorHighlight();
   htmlEditorDialog.showModal();
   htmlEditorInput.focus();
@@ -456,6 +498,7 @@ htmlEditorForm?.addEventListener("submit", (event) => {
   closeHtmlEditor();
 });
 cancelHtmlEditorBtn?.addEventListener("click", closeHtmlEditor);
+formatHtmlEditorBtn?.addEventListener("click", autoformatHtmlEditor);
 htmlEditorDialog?.addEventListener("cancel", () => { activeHtmlAnswerInput = null; });
 document.querySelectorAll("[data-html-tag]").forEach((button) => {
   button.addEventListener("click", () => insertHtmlElement(button.dataset.htmlTag));

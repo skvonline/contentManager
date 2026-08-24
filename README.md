@@ -790,7 +790,8 @@ Kategorisierte Fragen und Antworten für die FAQ-Seite.
 
 Die Antwort wird im Eintragsformular gerendert dargestellt. Über **HTML bearbeiten** öffnet sich ein kleiner Editor mit
 Syntaxhervorhebung. Die Werkzeugleiste fügt vollständige `<p>`-, `<ul>`-, `<ol>`-, `<li>`- und `<a>`-Elemente an der
-Cursorposition ein; bei Links wird vorher das `href` abgefragt.
+Cursorposition ein; bei Links wird vorher das `href` abgefragt. Beim Öffnen wird der HTML-Code automatisch eingerückt.
+Mit **Autoformat** kann die Formatierung nach weiteren Änderungen jederzeit erneut angewendet werden.
 
 ### 12.4 Vorlage
 
