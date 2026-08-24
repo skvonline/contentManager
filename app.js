@@ -270,6 +270,18 @@ const specs = {
       src: "./src/img/home-gallery/01.JPG",
       alt: "Titelbild"
     }
+  },
+  "special-faq": {
+    filename: "faqs/{xyz}.json",
+    summaryKeys: ["frage"],
+    fields: [
+      { name: "frage", type: "text", required: true },
+      { name: "antwort", type: "textarea", required: true, htmlEditor: true }
+    ],
+    template: {
+      frage: "Wie bekomme ich Karten für eure Veranstaltungen?",
+      antwort: "<p>Informationen zur Kartenvorbestellung und zum freien Verkauf findet ihr hier.</p>"
+    }
   }
 };
 
@@ -347,6 +359,8 @@ const galleryDeletePreviewBtn = document.querySelector("#galleryDeletePreviewBtn
 const galleryDeleteCommitBtn = document.querySelector("#galleryDeleteCommitBtn");
 const galleryDeleteCancelBtn = document.querySelector("#galleryDeleteCancelBtn");
 const DEFAULT_GALLERY_NAME = "home-gallery";
+const DEFAULT_SPECIAL_FAQ_NAME = "kartenverkauf";
+const DYNAMIC_FILE_TYPES = new Set(["gallery", "special-faq"]);
 const MANAGED_FILE_TYPES = new Set(["vorstand", "elferrat", "royals", "downloads"]);
 let confirmedGalleryName = "";
 let galleryNameConfirmed = false;
@@ -596,7 +610,15 @@ function toCurrencyInputValue(value) {
 }
 
 function updateTypeDependentUi() {
-  galleryNameWrap.classList.toggle("hidden", typeSelect.value !== "gallery");
+  const isDynamicFileType = DYNAMIC_FILE_TYPES.has(typeSelect.value);
+  galleryNameWrap.classList.toggle("hidden", !isDynamicFileType);
+  const nameLabel = galleryNameWrap?.querySelector('label[for="galleryNameInput"]');
+  if (nameLabel) {
+    nameLabel.textContent = typeSelect.value === "gallery"
+      ? "Galerie-Ordnername / Dateiname (ohne .json)"
+      : "FAQ-Dateiname (ohne .json)";
+  }
+  if (confirmGalleryBtn) confirmGalleryBtn.textContent = typeSelect.value === "gallery" ? "Ordner bestätigen" : "Dateiname bestätigen";
   const showGalleryOverviewActions = typeSelect.value === "gallery-overview";
   createGalleryScaffoldBtn?.classList.toggle("hidden", !showGalleryOverviewActions);
   deleteGalleryScaffoldBtn?.classList.toggle("hidden", !showGalleryOverviewActions);
@@ -610,7 +632,8 @@ function normalizeGalleryName(value) {
 }
 
 function getActiveGalleryName() {
-  return confirmedGalleryName || normalizeGalleryName(galleryNameInput.value) || DEFAULT_GALLERY_NAME;
+  const defaultName = typeSelect.value === "special-faq" ? DEFAULT_SPECIAL_FAQ_NAME : DEFAULT_GALLERY_NAME;
+  return confirmedGalleryName || normalizeGalleryName(galleryNameInput.value) || defaultName;
 }
 
 function getGalleryImagePrefix() {
@@ -628,41 +651,42 @@ function setGalleryHint(text, { warning = false } = {}) {
 }
 
 function updateGalleryConfirmationState() {
-  const isGalleryType = typeSelect.value === "gallery";
+  const isDynamicFileType = DYNAMIC_FILE_TYPES.has(typeSelect.value);
   const currentName = normalizeGalleryName(galleryNameInput?.value);
-  const needsConfirmation = isGalleryType && (!galleryNameConfirmed || currentName !== confirmedGalleryName);
+  const needsConfirmation = isDynamicFileType && (!galleryNameConfirmed || currentName !== confirmedGalleryName);
 
   loadOnlineBtn.disabled = needsConfirmation;
   addEntryBtn.disabled = needsConfirmation || !onlineJsonLoaded;
 
-  if (!isGalleryType) {
-    setGalleryHint("Bitte Ordnernamen bestätigen, bevor Einträge geladen oder erstellt werden.");
+  if (!isDynamicFileType) {
+    setGalleryHint("Bitte Namen bestätigen, bevor Einträge geladen oder erstellt werden.");
     return;
   }
 
   if (needsConfirmation) {
-    setGalleryHint("Bitte den Ordnernamen bestätigen. Danach kannst du Online-JSON laden oder Einträge hinzufügen.", { warning: true });
+    setGalleryHint("Bitte den Dateinamen bestätigen. Danach kannst du Online-JSON laden oder Einträge hinzufügen.", { warning: true });
     return;
   }
 
-  setGalleryHint(`Ordner bestätigt: ${confirmedGalleryName}. Du kannst jetzt laden oder Einträge hinzufügen.`);
+  setGalleryHint(`Dateiname bestätigt: ${confirmedGalleryName}. Du kannst jetzt laden oder Einträge hinzufügen.`);
 }
 
 function confirmGalleryName() {
-  if (typeSelect.value !== "gallery") return;
-  const normalizedName = normalizeGalleryName(galleryNameInput.value) || DEFAULT_GALLERY_NAME;
+  if (!DYNAMIC_FILE_TYPES.has(typeSelect.value)) return;
+  const defaultName = typeSelect.value === "special-faq" ? DEFAULT_SPECIAL_FAQ_NAME : DEFAULT_GALLERY_NAME;
+  const normalizedName = normalizeGalleryName(galleryNameInput.value) || defaultName;
   const isNameChange = galleryNameConfirmed && normalizedName !== confirmedGalleryName;
 
   if (isNameChange && hasEntries()) {
     const shouldClearEntries = window.confirm(
-      `Der Ordner wurde geändert von "${confirmedGalleryName}" auf "${normalizedName}". Alle aktuellen Einträge werden gelöscht. Fortfahren?`
+      `Der Dateiname wurde geändert von "${confirmedGalleryName}" auf "${normalizedName}". Alle aktuellen Einträge werden gelöscht. Fortfahren?`
     );
     if (!shouldClearEntries) {
       galleryNameInput.value = confirmedGalleryName;
       updateGalleryConfirmationState();
       return;
     }
-    renderEntries("gallery");
+    renderEntries(typeSelect.value);
     [...selectedGalleryFiles.values()].forEach((item) => {
       if (item?.objectUrl) URL.revokeObjectURL(item.objectUrl);
     });
@@ -1524,6 +1548,20 @@ function createInput(field, value) {
     });
     wrapper.append(preview);
     updateImagePreviewForInput(input);
+  }
+
+  if (field.htmlEditor && field.type === "textarea") {
+    input.classList.add("html-answer-source");
+    input.hidden = true;
+    const preview = document.createElement("div");
+    preview.className = "html-answer-preview";
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "secondary-button";
+    editButton.textContent = "HTML bearbeiten";
+    editButton.addEventListener("click", () => openHtmlEditor(input));
+    wrapper.append(preview, editButton);
+    refreshAnswerPreview(input);
   }
 
   return { wrapper, input };
@@ -2601,6 +2639,10 @@ function getFetchUrl() {
     return `${base}/src/data/gallerys/${galleryName}.json`;
   }
 
+  if (typeSelect.value === "special-faq") {
+    return `${base}/src/data/faqs/${getActiveGalleryName()}.json`;
+  }
+
   return `${base}/src/data/${specs[typeSelect.value].filename}`;
 }
 
@@ -2806,6 +2848,9 @@ function getDataPath() {
   if (typeSelect.value === "gallery") {
     const galleryName = getActiveGalleryName();
     return `src/data/gallerys/${galleryName}.json`;
+  }
+  if (typeSelect.value === "special-faq") {
+    return `src/data/faqs/${getActiveGalleryName()}.json`;
   }
   return `src/data/${specs[typeSelect.value].filename}`;
 }
@@ -3329,8 +3374,10 @@ async function loadOnlineJson() {
 
 typeSelect.addEventListener("change", () => {
   setOnlineJsonLoaded(false);
-  if (typeSelect.value === "gallery" && !galleryNameConfirmed) {
-    galleryNameInput.value = DEFAULT_GALLERY_NAME;
+  confirmedGalleryName = "";
+  galleryNameConfirmed = false;
+  if (DYNAMIC_FILE_TYPES.has(typeSelect.value)) {
+    galleryNameInput.value = typeSelect.value === "special-faq" ? DEFAULT_SPECIAL_FAQ_NAME : DEFAULT_GALLERY_NAME;
   }
   pendingGalleryScaffoldFiles = [];
   updateTypeDependentUi();
@@ -3470,7 +3517,7 @@ targetBranchInput?.addEventListener("change", () => {
 });
 
 galleryNameInput.addEventListener("input", () => {
-  if (typeSelect.value !== "gallery") return;
+  if (!DYNAMIC_FILE_TYPES.has(typeSelect.value)) return;
   updateGalleryConfirmationState();
   resetValidationUi();
 });
@@ -3496,9 +3543,8 @@ downloadBtn.addEventListener("click", () => {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
 
-  if (typeSelect.value === "gallery") {
-    const galleryName = getActiveGalleryName();
-    a.download = `${galleryName}.json`;
+  if (DYNAMIC_FILE_TYPES.has(typeSelect.value)) {
+    a.download = `${getActiveGalleryName()}.json`;
   } else {
     a.download = specs[typeSelect.value].filename;
   }

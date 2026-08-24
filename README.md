@@ -812,3 +812,32 @@ Mit **Autoformat** kann die Formatierung nach weiteren Änderungen jederzeit ern
   }
 ]
 ```
+
+---
+
+## 13) Dateien: `faqs/{xyz}.json`
+
+Pfad: `./src/data/faqs/{xyz}.json`
+
+### 13.1 Zweck
+
+Eigenständige, themenspezifische FAQ-Dateien. Der technische Dateiname wird im Generator wie bei
+`gallerys/{xyz}.json` vor dem Laden oder Bearbeiten bestätigt.
+
+### 13.2 Felder pro Eintrag
+
+| Feld      | Typ      | Pflicht | Beschreibung           |
+|-----------|----------|----------|------------------------|
+| `frage`   | `string` | Ja       | Angezeigte Frage.      |
+| `antwort` | `string` | Ja       | Antwort als HTML-Text. |
+
+### 13.3 Vorlage
+
+```json
+[
+  {
+    "frage": "Wie bekomme ich Karten für eure Veranstaltungen?",
+    "antwort": "<p>Informationen zur Kartenvorbestellung und zum freien Verkauf findet ihr hier.</p>"
+  }
+]
+```
