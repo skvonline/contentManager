@@ -178,6 +178,28 @@
       </form>
     </dialog>
 
+    <dialog id="htmlEditorDialog" class="html-editor-dialog">
+      <form id="htmlEditorForm" method="dialog" class="html-editor-form">
+        <h2>HTML-Antwort bearbeiten</h2>
+        <div class="html-editor-toolbar" aria-label="HTML-Elemente einfügen">
+          <button type="button" data-html-tag="p">&lt;p&gt;</button>
+          <button type="button" data-html-tag="ul">&lt;ul&gt;</button>
+          <button type="button" data-html-tag="ol">&lt;ol&gt;</button>
+          <button type="button" data-html-tag="li">&lt;li&gt;</button>
+          <button type="button" data-html-tag="a">&lt;a&gt;</button>
+          <button id="formatHtmlEditorBtn" type="button" class="secondary-button">Autoformat</button>
+        </div>
+        <div class="html-code-editor">
+          <pre id="htmlEditorHighlight" aria-hidden="true"></pre>
+          <textarea id="htmlEditorInput" aria-label="HTML-Code" spellcheck="false"></textarea>
+        </div>
+        <div class="actions">
+          <button id="saveHtmlEditorBtn" type="submit" value="save">Übernehmen</button>
+          <button id="cancelHtmlEditorBtn" type="button" class="secondary-button">Abbrechen</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="galleryInternalPickerDialog" class="confirm-dialog">
       <form id="galleryInternalPickerForm" method="dialog" class="confirm-dialog-form">
         <h2>Internes Bild auswählen</h2>

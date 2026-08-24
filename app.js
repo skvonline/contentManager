@@ -232,6 +232,33 @@ const specs = {
       directory: "fasching26"
     }
   },
+  faq: {
+    filename: "faq.json",
+    summaryKeys: ["kategorie"],
+    fields: [
+      { name: "kategorie", type: "text", required: true },
+      {
+        name: "fragen",
+        type: "list",
+        required: true,
+        itemFields: [
+          { name: "frage", type: "text", required: true },
+          { name: "antwort", type: "textarea", required: true },
+          { name: "stichwoerter", type: "csv", required: true, placeholder: "Tickets, Kontakt" }
+        ]
+      }
+    ],
+    template: {
+      kategorie: "Kartenverkauf",
+      fragen: [
+        {
+          frage: "Wo finde ich Informationen zum Kartenverkauf?",
+          antwort: "<p>Alle Informationen zum Kartenverkauf findest du in unserem separaten FAQ.</p>",
+          stichwoerter: ["Tickets", "Kontakt"]
+        }
+      ]
+    }
+  },
   gallery: {
     filename: "gallerys/{xyz}.json",
     summaryKeys: ["src", "alt"],
@@ -298,6 +325,12 @@ const galleryInternalImagePreview = document.querySelector("#galleryInternalImag
 const confirmGalleryInternalImageBtn = document.querySelector("#confirmGalleryInternalImageBtn");
 const cancelGalleryInternalImageBtn = document.querySelector("#cancelGalleryInternalImageBtn");
 const scrollTopBtn = document.querySelector("#scrollTopBtn");
+const htmlEditorDialog = document.querySelector("#htmlEditorDialog");
+const htmlEditorForm = document.querySelector("#htmlEditorForm");
+const htmlEditorInput = document.querySelector("#htmlEditorInput");
+const htmlEditorHighlight = document.querySelector("#htmlEditorHighlight");
+const cancelHtmlEditorBtn = document.querySelector("#cancelHtmlEditorBtn");
+const formatHtmlEditorBtn = document.querySelector("#formatHtmlEditorBtn");
 const galleryCreateDialog = document.querySelector("#galleryCreateDialog");
 const galleryCreateTechName = document.querySelector("#galleryCreateTechName");
 const galleryCreateDisplayName = document.querySelector("#galleryCreateDisplayName");
@@ -329,6 +362,147 @@ const detachedEntryImageUploads = new Set();
 let onlineJsonLoaded = false;
 let pendingGalleryScaffoldFiles = [];
 let galleryDirectorySuggestions = [];
+let activeHtmlAnswerInput = null;
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function highlightHtml(value) {
+  return escapeHtml(value).replace(
+    /(&lt;\/?)([a-zA-Z][\w-]*)([\s\S]*?)(\/?&gt;)/g,
+    '<span class="syntax-bracket">$1</span><span class="syntax-tag">$2</span><span class="syntax-attribute">$3</span><span class="syntax-bracket">$4</span>'
+  );
+}
+
+function syncHtmlEditorHighlight() {
+  if (!htmlEditorInput || !htmlEditorHighlight) return;
+  htmlEditorHighlight.innerHTML = `${highlightHtml(htmlEditorInput.value)}\n`;
+  htmlEditorHighlight.scrollTop = htmlEditorInput.scrollTop;
+  htmlEditorHighlight.scrollLeft = htmlEditorInput.scrollLeft;
+}
+
+function formatHtml(value) {
+  const template = document.createElement("template");
+  template.innerHTML = value || "";
+  const lines = [];
+  const voidTags = new Set(["AREA", "BASE", "BR", "COL", "EMBED", "HR", "IMG", "INPUT", "LINK", "META", "PARAM", "SOURCE", "TRACK", "WBR"]);
+
+  const formatNode = (node, depth) => {
+    const indentation = "  ".repeat(depth);
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textValue = node.textContent.replace(/\s+/g, " ").trim();
+      if (textValue) lines.push(`${indentation}${escapeHtml(textValue)}`);
+      return;
+    }
+    if (node.nodeType === Node.COMMENT_NODE) {
+      lines.push(`${indentation}<!--${node.textContent.trim()}-->`);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tag = node.tagName.toLowerCase();
+    const attributes = [...node.attributes]
+      .map((attribute) => ` ${attribute.name}="${attribute.value.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"`)
+      .join("");
+    lines.push(`${indentation}<${tag}${attributes}>`);
+    if (voidTags.has(node.tagName)) return;
+    node.childNodes.forEach((child) => formatNode(child, depth + 1));
+    lines.push(`${indentation}</${tag}>`);
+  };
+
+  template.content.childNodes.forEach((node) => formatNode(node, 0));
+  return lines.join("\n");
+}
+
+function autoformatHtmlEditor() {
+  if (!htmlEditorInput) return;
+  htmlEditorInput.value = formatHtml(htmlEditorInput.value);
+  syncHtmlEditorHighlight();
+  htmlEditorInput.focus();
+  htmlEditorInput.setSelectionRange(htmlEditorInput.value.length, htmlEditorInput.value.length);
+}
+
+function sanitizeAnswerHtml(value) {
+  const template = document.createElement("template");
+  template.innerHTML = value || "";
+  const allowedTags = new Set(["P", "UL", "OL", "LI", "A", "STRONG", "EM", "BR"]);
+  [...template.content.querySelectorAll("*")].reverse().forEach((node) => {
+    if (!allowedTags.has(node.tagName)) {
+      node.replaceWith(...node.childNodes);
+      return;
+    }
+    const href = node.tagName === "A" ? node.getAttribute("href") || "" : "";
+    [...node.attributes].forEach((attribute) => node.removeAttribute(attribute.name));
+    if (node.tagName === "A") {
+      if (/^(?:https?:|mailto:|\.\.?\/|#)/i.test(href)) node.setAttribute("href", href);
+    }
+  });
+  return template.innerHTML;
+}
+
+function refreshAnswerPreview(input) {
+  const preview = input?.closest(".form-field")?.querySelector(".html-answer-preview");
+  if (!preview) return;
+  preview.innerHTML = sanitizeAnswerHtml(input.value);
+  preview.classList.toggle("is-empty", !input.value.trim());
+  if (!input.value.trim()) preview.textContent = "Noch keine Antwort vorhanden.";
+}
+
+function closeHtmlEditor() {
+  activeHtmlAnswerInput = null;
+  if (htmlEditorDialog?.open) htmlEditorDialog.close();
+}
+
+function openHtmlEditor(input) {
+  if (!htmlEditorDialog || !htmlEditorInput) return;
+  activeHtmlAnswerInput = input;
+  htmlEditorInput.value = formatHtml(input.value);
+  syncHtmlEditorHighlight();
+  htmlEditorDialog.showModal();
+  htmlEditorInput.focus();
+  htmlEditorInput.setSelectionRange(htmlEditorInput.value.length, htmlEditorInput.value.length);
+}
+
+function insertHtmlElement(tag) {
+  if (!htmlEditorInput) return;
+  let openingTag = `<${tag}>`;
+  if (tag === "a") {
+    const href = window.prompt("Wohin soll der Link führen?", "https://");
+    if (href === null) return;
+    openingTag = `<a href="${href.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}">`;
+  }
+  const closingTag = `</${tag}>`;
+  const start = htmlEditorInput.selectionStart;
+  const end = htmlEditorInput.selectionEnd;
+  const selectedText = htmlEditorInput.value.slice(start, end);
+  htmlEditorInput.setRangeText(`${openingTag}${selectedText}${closingTag}`, start, end, "end");
+  const cursorPosition = start + openingTag.length + selectedText.length;
+  htmlEditorInput.setSelectionRange(cursorPosition, cursorPosition);
+  htmlEditorInput.focus();
+  syncHtmlEditorHighlight();
+}
+
+htmlEditorInput?.addEventListener("input", syncHtmlEditorHighlight);
+htmlEditorInput?.addEventListener("scroll", syncHtmlEditorHighlight);
+htmlEditorForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (activeHtmlAnswerInput) {
+    activeHtmlAnswerInput.value = htmlEditorInput.value;
+    refreshAnswerPreview(activeHtmlAnswerInput);
+    resetValidationUi();
+  }
+  closeHtmlEditor();
+});
+cancelHtmlEditorBtn?.addEventListener("click", closeHtmlEditor);
+formatHtmlEditorBtn?.addEventListener("click", autoformatHtmlEditor);
+htmlEditorDialog?.addEventListener("cancel", () => { activeHtmlAnswerInput = null; });
+document.querySelectorAll("[data-html-tag]").forEach((button) => {
+  button.addEventListener("click", () => insertHtmlElement(button.dataset.htmlTag));
+});
 
 function getSourceBranch() {
   const value = sourceBranchSelect?.value?.trim();
@@ -1390,6 +1564,19 @@ function addListItem(field, container, value = {}, onChange = () => {}) {
     const { wrapper, input } = createInput(subField, normalizedValue[subField.name]);
     input.dataset.subField = subField.name;
     input.dataset.required = String(!!subField.required);
+    if (field.name === "fragen" && subField.name === "antwort") {
+      input.classList.add("html-answer-source");
+      input.hidden = true;
+      const preview = document.createElement("div");
+      preview.className = "html-answer-preview";
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className = "html-answer-edit-button";
+      editButton.textContent = "HTML bearbeiten";
+      editButton.addEventListener("click", () => openHtmlEditor(input));
+      wrapper.append(preview, editButton);
+      refreshAnswerPreview(input);
+    }
     item.append(wrapper);
   });
 
@@ -1888,7 +2075,10 @@ function readEntry(entryEl) {
       const row = {};
       item.querySelectorAll("[data-sub-field]").forEach((subInput) => {
         const val = subInput.value.trim();
-        if (val) row[subInput.dataset.subField] = val;
+        if (!val) return;
+        row[subInput.dataset.subField] = subInput.dataset.fieldType === "csv"
+          ? val.split(",").map((part) => part.trim()).filter(Boolean)
+          : val;
       });
       if (Object.keys(row).length > 0) items.push(row);
     });
