@@ -565,6 +565,44 @@ function findLinkOptionByType(typeValue) {
   );
 }
 
+function buildMailtoLink(email, subject = "") {
+  const normalizedEmail = String(email || "").trim();
+  if (!normalizedEmail) return "";
+  const normalizedSubject = String(subject || "").trim();
+  if (!normalizedSubject) return `mailto:${normalizedEmail}`;
+  return `mailto:${normalizedEmail}?subject=${encodeURIComponent(normalizedSubject)}`;
+}
+
+function parseMailtoLink(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed.toLowerCase().startsWith("mailto:")) return { email: "", subject: "" };
+
+  const raw = trimmed.slice(7);
+  const [emailPart, queryString = ""] = raw.split("?");
+  const params = new URLSearchParams(queryString);
+  return {
+    email: decodeURIComponent(emailPart || "").trim(),
+    subject: params.get("subject") || ""
+  };
+}
+
+function createAuxTextField(labelText, value = "", { placeholder = "", type = "text" } = {}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-field";
+
+  const label = document.createElement("label");
+  label.textContent = labelText;
+  wrapper.append(label);
+
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value;
+  if (placeholder) input.placeholder = placeholder;
+  wrapper.append(input);
+
+  return { wrapper, input, label };
+}
+
 function formatDateWindow(value) {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}-${String(value.getUTCHours()).padStart(2, "0")}:${String(value.getUTCMinutes()).padStart(2, "0")}`;
 }
@@ -1739,10 +1777,22 @@ function addListItem(field, container, value = {}, onChange = () => {}) {
     if (matchingOption) normalizedValue.label = matchingOption.value;
   }
 
+  let linkTypeInput = null;
+  let linkUrlInput = null;
+  let linkUrlLabel = null;
+
   definition.forEach((subField) => {
     const { wrapper, input } = createInput(subField, normalizedValue[subField.name]);
     input.dataset.subField = subField.name;
     input.dataset.required = String(!!subField.required);
+    if (field.name === "links" && subField.name === "label") {
+      wrapper.querySelector("label").textContent = "Typ *";
+      linkTypeInput = input;
+    }
+    if (field.name === "links" && subField.name === "url") {
+      linkUrlInput = input;
+      linkUrlLabel = wrapper.querySelector("label");
+    }
     if (field.name === "fragen" && subField.name === "antwort") {
       input.classList.add("html-answer-source");
       input.hidden = true;
@@ -1758,6 +1808,48 @@ function addListItem(field, container, value = {}, onChange = () => {}) {
     }
     item.append(wrapper);
   });
+
+  if (field.name === "links" && linkTypeInput && linkUrlInput && linkUrlLabel) {
+    const resolvedOption = findLinkOptionByType(normalizedValue.type) || findLinkOptionByType(normalizedValue.label);
+    const customMoreLabel = resolvedOption?.type === "more" && normalizedValue.label && normalizedValue.label !== resolvedOption.value
+      ? normalizedValue.label
+      : "";
+    const { email, subject } = parseMailtoLink(normalizedValue.url);
+
+    const emailField = createAuxTextField("Mailadresse *", email, { placeholder: "name@example.org", type: "email" });
+    emailField.input.dataset.linkEmail = "true";
+    const subjectField = createAuxTextField("Betreff (optional)", subject, { placeholder: "Optionaler Betreff" });
+    subjectField.input.dataset.linkSubject = "true";
+    const customLabelField = createAuxTextField("Alternativer Anzeigetext (optional)", customMoreLabel, { placeholder: "z. B. Jetzt anmelden" });
+    customLabelField.input.dataset.linkCustomLabel = "true";
+
+    item.append(emailField.wrapper, subjectField.wrapper, customLabelField.wrapper);
+
+    const syncLinkFields = () => {
+      const selectedOption = findLinkOptionByType(linkTypeInput.value);
+      const selectedType = selectedOption?.type || "";
+      const isMail = selectedType === "mail";
+      const isMore = selectedType === "more";
+
+      emailField.wrapper.classList.toggle("hidden", !isMail);
+      subjectField.wrapper.classList.toggle("hidden", !isMail);
+      customLabelField.wrapper.classList.toggle("hidden", !isMore);
+      linkUrlInput.closest(".form-field")?.classList.toggle("hidden", isMail);
+
+      linkUrlLabel.textContent = "URL *";
+      linkUrlInput.placeholder = isMore ? "https://example.org" : "https://...";
+      linkUrlInput.readOnly = isMail;
+
+      if (isMail) {
+        linkUrlInput.value = buildMailtoLink(emailField.input.value, subjectField.input.value);
+      }
+    };
+
+    linkTypeInput.addEventListener("change", syncLinkFields);
+    emailField.input.addEventListener("input", syncLinkFields);
+    subjectField.input.addEventListener("input", syncLinkFields);
+    syncLinkFields();
+  }
 
   container.append(item);
   onChange();
@@ -2283,6 +2375,25 @@ function readEntry(entryEl) {
           ? val.split(",").map((part) => part.trim()).filter(Boolean)
           : val;
       });
+      if (fieldName === "links") {
+        const typeInput = item.querySelector('[data-sub-field="label"]');
+        const selectedOption = findLinkOptionByType(typeInput?.value || "");
+        const selectedType = selectedOption?.type || "";
+        const emailInput = item.querySelector("[data-link-email]");
+        const subjectInput = item.querySelector("[data-link-subject]");
+        const customLabelInput = item.querySelector("[data-link-custom-label]");
+
+        if (selectedOption?.value) row.label = selectedOption.value;
+        if (selectedType === "mail") {
+          const mailtoLink = buildMailtoLink(emailInput?.value || "", subjectInput?.value || "");
+          if (mailtoLink) row.url = mailtoLink;
+        }
+        if (selectedType === "more") {
+          const customLabel = String(customLabelInput?.value || "").trim();
+          if (customLabel) row.label = customLabel;
+        }
+        if (selectedType) row.type = selectedType;
+      }
       if (Object.keys(row).length > 0) items.push(row);
     });
 
@@ -2291,6 +2402,7 @@ function readEntry(entryEl) {
 
     if (fieldName === "links" && Array.isArray(data[fieldName])) {
       data[fieldName] = data[fieldName].map((item) => {
+        if (item.type) return item;
         const linkLabel = item.label || "";
         const matchingOption = linkLabelOptions.find((option) => option.value === linkLabel);
         if (!matchingOption || !matchingOption.type) return item;
@@ -2418,6 +2530,28 @@ function validate(entries, typeKey) {
           : field.itemFields || [];
 
         block.querySelectorAll(".list-item").forEach((itemEl, itemIdx) => {
+          if (field.name === "links") {
+            const typeValue = itemEl.querySelector('[data-sub-field="label"]')?.value.trim();
+            const selectedOption = findLinkOptionByType(typeValue);
+            const selectedType = selectedOption?.type || "";
+            const urlValue = itemEl.querySelector('[data-sub-field="url"]')?.value.trim();
+            const emailValue = itemEl.querySelector("[data-link-email]")?.value.trim();
+
+            if (!typeValue) {
+              const typeInput = itemEl.querySelector('[data-sub-field="label"]');
+              errors.push({ text: `Eintrag ${idx + 1}, links ${itemIdx + 1}: 'Typ' fehlt.`, element: typeInput });
+            }
+            if (selectedType === "mail" && !emailValue) {
+              const emailInput = itemEl.querySelector("[data-link-email]");
+              errors.push({ text: `Eintrag ${idx + 1}, links ${itemIdx + 1}: 'Mailadresse' fehlt.`, element: emailInput });
+            }
+            if (typeValue && selectedType !== "mail" && !urlValue) {
+              const urlInput = itemEl.querySelector('[data-sub-field="url"]');
+              errors.push({ text: `Eintrag ${idx + 1}, links ${itemIdx + 1}: 'url' fehlt.`, element: urlInput });
+            }
+            return;
+          }
+
           itemDefs.forEach((subField) => {
             if (!subField.required) return;
             const subInput = itemEl.querySelector(`[data-sub-field="${subField.name}"]`);
