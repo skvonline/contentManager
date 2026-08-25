@@ -291,6 +291,7 @@ const targetBranchInput = document.querySelector("#targetBranchInput");
 const syncBranchesBtn = document.querySelector("#syncBranchesBtn");
 const branchesList = document.querySelector("#branchesList");
 const compareLink = document.querySelector("#compareLink");
+const calendarLink = document.querySelector("#calendarLink");
 const commitBranchLabel = document.querySelector("#commitBranchLabel");
 const galleryNameWrap = document.querySelector("#galleryNameWrap");
 const galleryNameInput = document.querySelector("#galleryNameInput");
@@ -3224,6 +3225,11 @@ function updateCompareLink() {
   compareLink.href = `https://github.com/${CONFIG.GITHUB_OWNER}/${CONFIG.GITHUB_REPO}/compare/${encodeURIComponent(getSourceBranch())}...${encodeURIComponent(targetBranch)}`;
 }
 
+function updateCalendarLink() {
+  if (!calendarLink) return;
+  calendarLink.href = `kalender/index.html?branch=${encodeURIComponent(getSourceBranch())}`;
+}
+
 function updateCommitBranchLabel() {
   if (!commitBranchLabel) return;
   commitBranchLabel.textContent = getTargetBranch();
@@ -3273,6 +3279,7 @@ async function syncBranches() {
       targetBranchInput.value = CONFIG.DEFAULT_TARGET_BRANCH;
     }
     updateCompareLink();
+    updateCalendarLink();
     updateCommitBranchLabel();
     refreshGalleryDirectorySuggestions();
     syncBranchesBtn.textContent = "✓";
@@ -4015,7 +4022,15 @@ confirmGalleryBtn.addEventListener("click", confirmGalleryName);
 
 sourceBranchSelect?.addEventListener("change", () => {
   setOnlineJsonLoaded(false);
+  updateCalendarLink();
   refreshGalleryDirectorySuggestions();
+});
+
+calendarLink?.addEventListener("click", (event) => {
+  event.preventDefault();
+  const targetUrl = `kalender/index.html?branch=${encodeURIComponent(getSourceBranch())}`;
+  calendarLink.href = targetUrl;
+  window.location.href = targetUrl;
 });
 
 targetBranchInput?.addEventListener("input", () => {
@@ -4160,6 +4175,7 @@ if (sourceBranchSelect) {
 }
 if (targetBranchInput) targetBranchInput.value = CONFIG.DEFAULT_TARGET_BRANCH;
 updateCompareLink();
+updateCalendarLink();
 updateCommitBranchLabel();
 syncBranches();
 updateTypeDependentUi();

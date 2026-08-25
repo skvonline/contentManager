@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SKV Contentkalender</title>
+    <link rel="stylesheet" href="content-calendar.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="page-header-inner">
+        <div class="page-header-main">
+          <div class="page-header-copy">
+            <p class="eyebrow">SKV JSON Generator</p>
+            <h1>Contentkalender</h1>
+            <p class="lead">Publikationen, Termine und Löschungen kompakt und klickbar.</p>
+          </div>
+          <div class="legend-bar" aria-label="Legende">
+            <span class="legend-pill" data-kind="publish">Publish</span>
+            <span class="legend-pill" data-kind="event">Termin</span>
+            <span class="legend-pill" data-kind="delete">Delete</span>
+            <span class="legend-pill" data-kind="countdown">Countdown</span>
+            <span class="legend-dot" data-accent="news">News</span>
+            <span class="legend-dot" data-accent="events">Veranstaltung</span>
+            <span class="legend-dot" data-accent="header-notices">Hinweis</span>
+            <span class="legend-dot" data-accent="gallery-overview">Galerie</span>
+          </div>
+        </div>
+        <div class="page-header-side">
+          <div class="view-switch" role="tablist" aria-label="Kalenderansicht">
+            <button id="agendaViewBtn" class="view-switch-btn is-active" type="button" data-view="agenda">Liste</button>
+            <button id="monthViewBtn" class="view-switch-btn" type="button" data-view="month">Kalenderblatt</button>
+          </div>
+          <a class="back-link" href="../index.html">Zurück zum Generator</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="panel controls-panel">
+        <div class="controls-grid">
+          <div>
+            <label for="sourceBranchSelect">Quell-Branch</label>
+            <select id="sourceBranchSelect"></select>
+          </div>
+          <div class="control-actions">
+            <button id="syncBranchesBtn" class="secondary-button" type="button">Branches synchronisieren</button>
+            <button id="loadCalendarBtn" type="button">Kalender laden</button>
+          </div>
+        </div>
+        <p id="calendarStatus" class="calendar-status">
+          Wähle bei Bedarf einen Quell-Branch und lade dann den Kalender.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div id="calendarBoard" class="calendar-board">
+          <p class="calendar-placeholder">Noch kein Kalender geladen.</p>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="calendarDetailDialog" class="detail-dialog">
+      <div class="detail-dialog-card">
+        <div class="detail-dialog-head">
+          <h2 id="calendarDetailTitle">Kalendereintrag</h2>
+          <button id="closeCalendarDetailBtn" type="button" class="secondary-button">Schließen</button>
+        </div>
+        <div id="calendarDetailBody" class="detail-dialog-body"></div>
+      </div>
+    </dialog>
+
+    <script src="content-calendar.js"></script>
+  </body>
+</html>
