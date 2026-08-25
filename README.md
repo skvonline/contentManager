@@ -304,7 +304,7 @@ Prinzenpaare für Galerie + Lightbox.
 |-------------|-----------------------------------|----------|-------------------------------------|
 | `session`   | `string`                          | Ja       | Session-Text (z. B. `47. Session`). |
 | `year`      | `string`                          | Ja       | Jahrgang (z. B. `2025/2026`).       |
-| `image`     | `object`                          | Ja       | Bildpfad.                           |
+| `image`     | `object`                          | Optional | Bildpfad.                           |
 | `adultPair` | `array<object>`/`object`/`string` | Ja       | Großes Prinzenpaar.                 |
 | `childPair` | `array<object>`/`object`/`string` | Optional | Kinderprinzenpaar.                  |
 
@@ -327,7 +327,6 @@ Daten aber nicht verwendet werden.
   {
     "session": "47. Session",
     "year": "2025/2026",
-    "image": { "src": "./src/img/verein/prinzenpaare/pp2526.JPG", "ki": false, "teilweiseKi": false },
     "adultPair": [
       {
         "prince": "Dominik I.",
@@ -712,7 +711,6 @@ Alle Dateidownloads, die auf der Downloadseite angezeigt werden.
   {
     "session": "48. Session",
     "year": "2026/2027",
-    "image": { "src": "./src/img/verein/prinzenpaare/pp2627.JPG", "ki": false, "teilweiseKi": false },
     "adultPair": [
       {
         "prince": "Max I.",

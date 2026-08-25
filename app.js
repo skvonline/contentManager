@@ -159,7 +159,7 @@ const specs = {
     fields: [
       { name: "session", type: "text", required: true },
       { name: "year", type: "text", required: true },
-      { name: "image", type: "image", required: true, filenameOnly: true, pathPrefix: "./src/img/verein/prinzenpaare/" },
+      { name: "image", type: "image", filenameOnly: true, pathPrefix: "./src/img/verein/prinzenpaare/" },
       { name: "adultPair", type: "pairList", required: true, maxItems: 1 },
       { name: "childPair", type: "pairList", maxItems: 1 }
     ],
@@ -329,6 +329,7 @@ const gallerySourceForm = document.querySelector("#gallerySourceForm");
 const selectGallerySourceNewBtn = document.querySelector("#selectGallerySourceNewBtn");
 const selectGallerySourceInternalBtn = document.querySelector("#selectGallerySourceInternalBtn");
 const selectGallerySourceExternalBtn = document.querySelector("#selectGallerySourceExternalBtn");
+const selectGallerySourceNoneBtn = document.querySelector("#selectGallerySourceNoneBtn");
 const cancelGallerySourceBtn = document.querySelector("#cancelGallerySourceBtn");
 const galleryInternalPickerDialog = document.querySelector("#galleryInternalPickerDialog");
 const galleryInternalPickerForm = document.querySelector("#galleryInternalPickerForm");
@@ -371,7 +372,7 @@ const specialFaqCreateCancelBtn = document.querySelector("#specialFaqCreateCance
 const DEFAULT_GALLERY_NAME = "home-gallery";
 const DEFAULT_SPECIAL_FAQ_NAME = "kartenverkauf";
 const DYNAMIC_FILE_TYPES = new Set(["gallery", "special-faq"]);
-const MANAGED_FILE_TYPES = new Set(["vorstand", "elferrat", "royals", "downloads"]);
+const MANAGED_FILE_TYPES = new Set(["vorstand", "elferrat", "downloads"]);
 let confirmedGalleryName = "";
 let galleryNameConfirmed = false;
 const selectedGalleryFiles = new Map();
@@ -1007,7 +1008,7 @@ function getImageSrc(value) {
 }
 
 function isEntryImageType(typeKey = typeSelect.value) {
-  return typeKey === "news" || typeKey === "events";
+  return typeKey === "news" || typeKey === "events" || typeKey === "royals";
 }
 
 function getGalleryImageFilenameFromValue(value) {
@@ -1164,9 +1165,9 @@ function refreshEntryImageActionButton(entryEl) {
   const actionBtn = entryEl?.querySelector(".entry-image-action-btn");
   if (!imageInput || !actionBtn) return;
   const hasImage = hasEntryImageValue(imageInput);
-  actionBtn.textContent = hasImage ? "−" : "+";
-  actionBtn.title = hasImage ? "Bild entfernen" : "Bild hinzufügen";
-  actionBtn.setAttribute("aria-label", hasImage ? "Bild entfernen" : "Bild hinzufügen");
+  actionBtn.textContent = "🔁";
+  actionBtn.title = hasImage ? "Bild tauschen oder entfernen" : "Bild hinzufügen";
+  actionBtn.setAttribute("aria-label", hasImage ? "Bild tauschen oder entfernen" : "Bild hinzufügen");
 }
 
 function setEntryImageInputMode(imageInput, mode, value) {
@@ -1267,6 +1268,80 @@ async function handleEntryImageAction(entryEl) {
       if (selectedEntryImageFiles.has(previousPath)) detachedEntryImageUploads.add(previousPath);
     }
     clearEntryImageFromInput(imageInput);
+    const source = await openGallerySourceDialog({ allowNone: true });
+    if (!source) {
+      refreshEntryImageActionButton(entryEl);
+      resetValidationUi();
+      return;
+    }
+    if (source === "none") {
+      refreshEntryImageActionButton(entryEl);
+      resetValidationUi();
+      return;
+    }
+
+    if (source === "new") {
+      const file = await pickSingleLocalImage();
+      if (!file) {
+        refreshEntryImageActionButton(entryEl);
+        resetValidationUi();
+        return;
+      }
+      rememberEntryImageFile(file, imageInput);
+      const nextPath = `${imageInput.dataset.pathPrefix || ""}${getFilenameOnly(file.name)}`.replace(/^\.\//, "");
+      pendingEntryImageRepoDeletes.delete(nextPath);
+      detachedEntryImageUploads.delete(nextPath);
+      setEntryImageInputMode(imageInput, "repo", file.name);
+    }
+
+    if (source === "internal") {
+      try {
+        const internalFiles = await fetchInternalEntryImages(imageInput);
+        if (internalFiles.length === 0) {
+          window.alert("Im Zielordner wurden keine Bilder gefunden.");
+          refreshEntryImageActionButton(entryEl);
+          resetValidationUi();
+          return;
+        }
+        const relativePrefix = imageInput.dataset.pathPrefix || "";
+        const selectedFile = await openInternalGalleryImageDialog(internalFiles, {
+          relativePrefix,
+          repoPrefix: relativePrefix.replace(/^\.\//, ""),
+          selectedFileMap: selectedEntryImageFiles
+        });
+        if (!selectedFile) {
+          refreshEntryImageActionButton(entryEl);
+          resetValidationUi();
+          return;
+        }
+        const nextPath = `${imageInput.dataset.pathPrefix || ""}${getFilenameOnly(selectedFile)}`.replace(/^\.\//, "");
+        pendingEntryImageRepoDeletes.delete(nextPath);
+        detachedEntryImageUploads.delete(nextPath);
+        setEntryImageInputMode(imageInput, "repo", selectedFile);
+      } catch (error) {
+        window.alert(`Interne Bilder konnten nicht geladen werden: ${error.message}`);
+        refreshEntryImageActionButton(entryEl);
+        resetValidationUi();
+        return;
+      }
+    }
+
+    if (source === "external") {
+      const link = window.prompt("Bitte externen Bildlink eingeben (https://...):", "");
+      if (!link) {
+        refreshEntryImageActionButton(entryEl);
+        resetValidationUi();
+        return;
+      }
+      if (!isExternalImagePath(link)) {
+        window.alert("Bitte eine vollständige http(s)-URL angeben.");
+        refreshEntryImageActionButton(entryEl);
+        resetValidationUi();
+        return;
+      }
+      setEntryImageInputMode(imageInput, "external", link.trim());
+    }
+
     refreshEntryImageActionButton(entryEl);
     resetValidationUi();
     return;
@@ -1716,13 +1791,17 @@ function openGalleryReplacePolicyDialog() {
   });
 }
 
-function openGallerySourceDialog() {
+function openGallerySourceDialog({ allowNone = false } = {}) {
   if (!gallerySourceDialog || !gallerySourceForm || typeof gallerySourceDialog.showModal !== "function") {
-    const selected = window.prompt("Neue Bildquelle wählen: neu / intern / extern", "neu");
+    const selected = window.prompt(
+      allowNone ? "Neue Bildquelle wählen: neu / intern / extern / kein" : "Neue Bildquelle wählen: neu / intern / extern",
+      "neu"
+    );
     const normalized = (selected || "").trim().toLowerCase();
     if (normalized === "neu") return Promise.resolve("new");
     if (normalized === "intern") return Promise.resolve("internal");
     if (normalized === "extern") return Promise.resolve("external");
+    if (allowNone && (normalized === "kein" || normalized === "none")) return Promise.resolve("none");
     return Promise.resolve(null);
   }
 
@@ -1731,6 +1810,7 @@ function openGallerySourceDialog() {
       selectGallerySourceNewBtn?.removeEventListener("click", handleNew);
       selectGallerySourceInternalBtn?.removeEventListener("click", handleInternal);
       selectGallerySourceExternalBtn?.removeEventListener("click", handleExternal);
+      selectGallerySourceNoneBtn?.removeEventListener("click", handleNone);
       cancelGallerySourceBtn?.removeEventListener("click", handleCancel);
       gallerySourceDialog.removeEventListener("cancel", handleCancel);
       if (gallerySourceDialog.open) gallerySourceDialog.close();
@@ -1739,11 +1819,16 @@ function openGallerySourceDialog() {
     const handleNew = () => closeDialog("new");
     const handleInternal = () => closeDialog("internal");
     const handleExternal = () => closeDialog("external");
+    const handleNone = () => closeDialog("none");
     const handleCancel = () => closeDialog(null);
 
+    if (selectGallerySourceNoneBtn) {
+      selectGallerySourceNoneBtn.hidden = !allowNone;
+    }
     selectGallerySourceNewBtn?.addEventListener("click", handleNew);
     selectGallerySourceInternalBtn?.addEventListener("click", handleInternal);
     selectGallerySourceExternalBtn?.addEventListener("click", handleExternal);
+    selectGallerySourceNoneBtn?.addEventListener("click", handleNone);
     cancelGallerySourceBtn?.addEventListener("click", handleCancel);
     gallerySourceDialog.addEventListener("cancel", handleCancel);
     gallerySourceDialog.showModal();
@@ -3622,7 +3707,65 @@ typeSelect.addEventListener("change", () => {
 });
 
 addEntryBtn.addEventListener("click", async () => {
-  if (typeSelect.value !== "gallery" && !isManagedFileType()) {
+  if (typeSelect.value === "royals") {
+    const source = await openGallerySourceDialog({ allowNone: true });
+    if (!source) return;
+
+    if (source === "none") {
+      addEntry();
+      resetValidationUi();
+      return;
+    }
+
+    if (source === "new") {
+      const file = await pickSingleLocalImage();
+      if (!file) return;
+      rememberEntryImageFile(file, {
+        dataset: { pathPrefix: "./src/img/verein/prinzenpaare/" }
+      });
+      addEntry({ image: { src: file.name, ki: false, teilweiseKi: false } });
+      resetValidationUi();
+      return;
+    }
+
+    if (source === "internal") {
+      try {
+        const internalFiles = await fetchInternalEntryImages({
+          dataset: { pathPrefix: "./src/img/verein/prinzenpaare/" }
+        });
+        if (internalFiles.length === 0) {
+          window.alert("Im Zielordner wurden keine Bilder gefunden.");
+          return;
+        }
+        const relativePrefix = "./src/img/verein/prinzenpaare/";
+        const selectedFile = await openInternalGalleryImageDialog(internalFiles, {
+          relativePrefix,
+          repoPrefix: relativePrefix.replace(/^\.\//, ""),
+          selectedFileMap: selectedEntryImageFiles
+        });
+        if (!selectedFile) return;
+        addEntry({ image: { src: selectedFile, ki: false, teilweiseKi: false } });
+        resetValidationUi();
+      } catch (error) {
+        window.alert(`Interne Bilder konnten nicht geladen werden: ${error.message}`);
+      }
+      return;
+    }
+
+    if (source === "external") {
+      const link = window.prompt("Bitte externen Bildlink eingeben (https://...):", "");
+      if (!link) return;
+      if (!isExternalImagePath(link)) {
+        window.alert("Bitte eine vollständige http(s)-URL angeben.");
+        return;
+      }
+      addEntry({ image: { src: link.trim(), ki: false, teilweiseKi: false } });
+      resetValidationUi();
+      return;
+    }
+  }
+
+  if (typeSelect.value !== "gallery" && !isManagedFileType(typeSelect.value)) {
     addEntry();
     resetValidationUi();
     return;
